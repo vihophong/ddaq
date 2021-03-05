@@ -1,0 +1,361 @@
+* NOTE!!! IMPORTANT!!!! Maximum line = 500 * for writing file header
+* Storage *
+
+SAVE_DIR /home/NiGIRI/data1/briken_test_2016/
+SAVE_NAME briken
+
+* Communication Parameters *
+
+#Link type: CAEN_DGTZ_OpticalLink, CAEN_DGTZ_USB
+Params.LinkType CAEN_DGTZ_OpticalLink
+Params.LinkNum 0
+Params.BoardNum 0
+Params.VMEBaseAddress 0
+#I/O level: CAEN_DGTZ_IOLevel_TTL, CAEN_DGTZ_IOLevel_NIM
+Params.IOlev CAEN_DGTZ_IOLevel_NIM
+
+*  Acquisition parameters    *
+#ACQ mode: CAEN_DGTZ_DPP_ACQ_MODE_Mixed, CAEN_DGTZ_DPP_ACQ_MODE_List or CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope
+Params.AcqMode CAEN_DGTZ_DPP_ACQ_MODE_Mixed
+#Set the number of samples for each waveform
+Params.RecordLength 496
+#number of events in one aggregate (0=automatic)
+Params.EventAggr 1
+#Option for external trigger: CAEN_DGTZ_TRGMODE_DISABLED,CAEN_DGTZ_TRGMODE_EXTOUT_ONLY, CAEN_DGTZ_TRGMODE_ACQ_ONLY, CAEN_DGTZ_TRGMODE_ACQ_AND_EXTOUT
+
+#Params.ExtTriggerInputMode CAEN_DGTZ_TRGMODE_DISABLED
+Params.ExtTriggerInputMode CAEN_DGTZ_TRGMODE_ACQ_ONLY
+
+*  DPP parameter for all channel  *
+# Pile-Up rejection Mode
+# CAEN_DGTZ_DPP_PSD_PUR_DetectOnly -> Only Detect Pile-Up
+# CAEN_DGTZ_DPP_PSD_PUR_Enabled -> Reject Pile-Up */
+# DPPParams.purgap->Purity Gap
+# DPPParams.blthr->Baseline Threshold
+# DPPParams.bltmo->Baseline Timeout
+# DPPParams.trgho->Trigger HoldOff
+
+DPPParams.purh CAEN_DGTZ_DPP_PSD_PUR_DetectOnly
+DPPParams.purgap 100
+DPPParams.blthr 3
+DPPParams.bltmo 100
+DPPParams.trgho 0
+
+*  Write Register  *
+# GENERIC_WRITE: generic write register access. This command allows the user to have a direct write access
+# to the registers of the board. NOTE: all the direct write accesses are executed AFTER the other settings,
+# thus it might happen that the direct write overwrites a specific setting.
+# To avoid this use the right "MASK".
+# Syntax: GENERIC_WRITE ADDRESS DATA MASK, where ADDRESS is the address offset of the register (16 bit hex), DATA
+# is the value being written (32 bit hex) and MASK is the bitmask to be used for DATA masking.
+# Example: Set only bit [8] of register 1080 to 1, leaving the other bits to their previous value
+
+#GENERIC_WRITE 0x1078 0x66 0x3FF
+#GENERIC_WRITE 0x8100 0x5 0x7
+
+#Enable trigger extra mode 00
+GENERIC_WRITE 0x1084 0x0 0x700
+#Enable busy signal to be propagate to TRG-OUT
+GENERIC_WRITE 0x811C 0x50000 0xF0000
+
+#Coincidence mode for ch 0 and 2
+#GENERIC_WRITE 0x8000 0x4 0x4
+
+#GENERIC_WRITE 0x1080 0x40000 0xC0000
+#GENERIC_WRITE 0x1180 0x40000 0xC0000
+#GENERIC_WRITE 0x1280 0x40000 0xC0000
+#GENERIC_WRITE 0x1380 0x40000 0xC0000
+
+#GENERIC_WRITE 0x1084 0x70 0x7F
+#GENERIC_WRITE 0x1184 0x70 0x7F
+#GENERIC_WRITE 0x1284 0x4 0x7F
+#GENERIC_WRITE 0x1384 0x4 0x7F
+
+#GENERIC_WRITE 0x1070 0xF 0x3FF
+#GENERIC_WRITE 0x1170 0xF 0x3FF
+#GENERIC_WRITE 0x1270 0xF 0x3FF
+#GENERIC_WRITE 0x1370 0xF 0x3FF
+
+#GENERIC_WRITE 0x8180 0x103 0x3FF
+#GENERIC_WRITE 0x8184 0x103 0x3FF
+#GENERIC_WRITE 0x8188 0x103 0x3FF
+#GENERIC_WRITE 0x818C 0x103 0x3FF
+
+
+* Individual setting for channel *
+#Params.ChannelEnabled[ch] YES/NO
+#Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative/ CAEN_DGTZ_PulsePolarityPositive
+#Params.PreTriggerSize[ch] ->Set the Pre-Trigger size (in samples)
+
+#Params.DCOffset[ch]: DC offset adjust (DAC channel setting) in percent of the Full Scale:
+# For model 740 and 742* the DC offset adjust is the same for all channel in the group
+# -50: analog input dynamic range = -Vpp to 0 (negative signals)*
+# +50: analog input dynamic range = 0 to +Vpp (positive signals)*
+# 0:   analog input dynamic range = -Vpp/2 to +Vpp/2 (bipolar signals)*
+# options: -50.0 to 50.0  (floating point)
+
+#DPPParams.thr[ch] -> threshold for the channel auto trigger (ADC counts)
+
+#DPPParams.nsbl[ch] -> specifiy the number of samples for the baseline averaging:
+#            0 -> absolute Bl
+#            1 -> 4samp
+#            2 -> 8samp
+#            3 -> 16samp
+#            4 -> 32samp
+#            5 -> 64samp
+#            6 -> 128samp
+
+#DPPParams.lgate[ch] -> Long Gate Width (N*2ns)
+#DPPParams.sgate[ch] -> Short Gate Width (N*2ns)
+#DPPParams.pgate[ch] -> Pre Gate Width (N*2ns)
+
+#DPPParams.selft[ch]-> Self Trigger Mode:
+#            0 -> Disabled
+#            1 -> Enabled */
+
+#DPPParams.trgc[ch]-> Trigger configuration:
+#   CAEN_DGTZ_DPP_TriggerConfig_Peak       -> trigger on peak. NOTE: Only for FW <= 13X.5
+#   CAEN_DGTZ_DPP_TriggerConfig_Threshold  -> trigger on threshold 
+#DPPParams.tvaw[ch]-> Trigger Validation Acquisition Window
+# DPPParams.csens[ch]-> Charge sensibility: 0->40fc/LSB; 1->160fc/LSB; 2->640fc/LSB; 3->2,5pc/LSB 
+
+
+[0]
+Params.ChannelEnabled[ch] YES
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 100
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 2
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch]1 10
+DPPParams.selft[ch] 1
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[1]
+Params.ChannelEnabled[ch] YES
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 200
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 2
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 1
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[2]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 50
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 500
+DPPParams.nsbl[ch] 2
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 1
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[3]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 30
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 500
+DPPParams.nsbl[ch] 2
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[4]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 2
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[5]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 2
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[6]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 3
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[7]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 3
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[8]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 3
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[9]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 3
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[10]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 3
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[11]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 3
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[12]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 3
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[13]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 3
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[14]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 3
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
+
+[15]
+Params.ChannelEnabled[ch] NO
+Params.PulsePolarity[ch] CAEN_DGTZ_PulsePolarityNegative
+Params.PreTriggerSize[ch] 150
+Params.DCOffset[ch] -45
+DPPParams.thr[ch] 200
+DPPParams.nsbl[ch] 3
+DPPParams.lgate[ch] 300
+DPPParams.sgate[ch] 20
+DPPParams.pgate[ch] 10
+DPPParams.selft[ch] 0
+DPPParams.trgc[ch] CAEN_DGTZ_DPP_TriggerConfig_Threshold
+DPPParams.tvaw[ch] 50
+DPPParams.csens[ch] 0
