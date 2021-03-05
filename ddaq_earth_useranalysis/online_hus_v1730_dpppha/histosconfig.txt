@@ -1,0 +1,38 @@
+#Hist Config
+# TH1 name
+TH1 hdummy
+TH1 henergy
+TH1 htrgtrace1d
+TH1 hdptrace1d
+TH1 hap1trace1d
+TH1 hap2trace1d
+
+# TH2 name
+TH2 hap1trace2d
+TH2 hap2trace2d
+
+
+
+# Default histogram in canvas 1
+# CANVAS1 name
+CANVAS1 hdummy
+CANVAS1 hdptrace1d
+CANVAS1 hap1trace1d
+CANVAS1 hap2trace1d
+# Default histogram in canvas 2
+CANVAS2 henergy
+CANVAS2 hap2trace2d
+
+# Name in list box
+LISTBOX henergy
+LISTBOX htrgtrace1d
+LISTBOX hdptrace1d
+LISTBOX hap1trace1d
+LISTBOX hap2trace1d
+LISTBOX hap1trace2d
+LISTBOX hap2trace2d
+
+# Rate meter histogram name (must be one of the TH1 name)
+RATE hrate
+RATECAL hratetmp
+RATECALTOSCALE hratetmpscale

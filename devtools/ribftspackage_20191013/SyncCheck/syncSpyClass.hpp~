@@ -1,0 +1,68 @@
+/***********************************************************************************
+ >  *        File:   syncSpy.cpp                                                 *
+ >  * Description:   read the "DataSink" (MIDAS data shared program) 
+ >  *                                  shared memory directly                *
+ >  *      Author:   Alvaro Tolosa Delgado  IFIC/CSIC spain                           *
+ >  *Site Contact:   alvaro.tolosa@ific.uv.es                                           *
+ >  * Last Change:   02/11/2016                                                    *
+ >  *******************************************************************************/
+
+#include <iostream>
+#include <fstream>
+#include <stdint.h>
+#include <string>
+#include<vector>
+class SpyDataSink
+{
+
+public:
+  SpyDataSink(){};
+  SpyDataSink(const std::string & Addr ){
+    MyAddr=Addr;
+  };
+  void Test(){
+    std::cout<<"Ready to connect on:"<<MyAddr<<std::endl;
+  }
+  int Spy( std::vector<uint32_t> & buffer){
+
+    uint32_t DummyBuffer;
+     
+    std::ifstream   input(MyAddr.c_str(), std::ios::binary );
+   uint16_t lineCounter(0);
+   bool OneWord=false;
+   int  NumOf0=0;
+   while(input.read((char *)&DummyBuffer,sizeof(DummyBuffer)) ){
+
+     if(lineCounter<9){
+       buffer.push_back(DummyBuffer);
+       std::cout << std::hex <<"++++0x" << DummyBuffer<<"\t" <<std::endl;
+     }
+     else if( DummyBuffer || OneWord  ){
+       OneWord=true;
+       buffer.push_back(DummyBuffer);
+       std::cout << std::hex <<"----0x" << DummyBuffer<<"\t";
+       if(lineCounter%10==0)
+	 std::cout<< lineCounter <<std::endl;
+       if(DummyBuffer==0){
+	 NumOf0++;
+       }
+       else NumOf0=0;
+       if(NumOf0>2){
+	 std::cout<<"Total Words read "<< lineCounter <<std::endl;
+ 	 input.close();
+	 return lineCounter;
+       }
+     }
+     
+     
+     lineCounter++;
+   }
+   std::cout<<"Total Words read "<< lineCounter <<std::endl;
+   input.close();
+   return lineCounter;
+  
+
+  };
+private:
+  std::string MyAddr;
+};

@@ -1,0 +1,134 @@
+# GNU make !
+# tested on Linux and AIX
+# build all local files
+# At GSI: if GSI_OS is not set, execute '. toollogin'.
+# Builds libgsievt.a
+
+ifeq ($(RFIO),RFIO)
+	RFIO_LIB=librfio.a
+	RFIO_DEF=-D RFIO
+endif
+
+ifeq ($(GSI_OS),AIX)
+	DEF = -D $(GSI_OS) -D __STRICT_ANSI__ -D SYS_UNIX
+	COM = cc -c -O
+	LINK = cc -O
+	OPT = -qro -qroconst -qmaxmem=8192
+endif
+ifeq ($(GSI_OS),Linux)
+	DEF = -D $(GSI_OS) $(RFIO_DEF)
+	COM = gcc -c -O
+	LINK = gcc -O
+	OPT = 
+	LIB=libgsievt.a $(RFIO_LIB) -lm -lrt
+endif
+
+INC = .
+
+all:  f_evt.o\
+      fLmd.o \
+      f_evcli.o\
+      f_stccomm.o\
+      f_swaplw.o\
+      f_his_hist.o\
+      f_histo_io.o\
+      f_his_toupper.o\
+      f_his_swpbas.o\
+      f_ut_compress.o\
+      f_ut_utime.o\
+      f_ut_time.o\
+      f_ut_wild.o \
+      f_find_peaks.o\
+      f_radware.o \
+      f_mbs_status.o \
+      f_ut_status.o \
+      f_ut_seg_show.o \
+      m_mbs_event_test.o \
+      m_histo.o \
+      m_histo_cli.o \
+      m_histo_conv.o \
+      m_mbs_status.o \
+      m_daq_rate.o
+
+.PHONY: all
+
+fLmd.o : fLmd.c fLmd.h sMbs.h
+	$(COM) $(DEF) -I$(INC) $(OPT) fLmd.c
+	ar r libgsievt.a fLmd.o
+f_evt.o : f_evt.c
+	$(COM) $(DEF)-DDABC  -I$(INC) $(OPT) f_evt.c
+	ar r libgsievt.a f_evt.o
+f_evcli.o : f_evcli.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_evcli.c
+	ar r libgsievt.a f_evcli.o
+f_stccomm.o : f_stccomm.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_stccomm.c
+	ar r libgsievt.a f_stccomm.o
+f_swaplw.o : f_swaplw.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_swaplw.c
+	ar r libgsievt.a f_swaplw.o
+f_his_hist.o : f_his_hist.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_his_hist.c
+	ar r libgsievt.a f_his_hist.o
+f_histo_io.o : f_histo_io.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_histo_io.c
+	ar r libgsievt.a f_histo_io.o
+f_his_swpbas.o : f_his_swpbas.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_his_swpbas.c
+	ar r libgsievt.a f_his_swpbas.o
+f_his_toupper.o : f_his_toupper.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_his_toupper.c
+	ar r libgsievt.a f_his_toupper.o
+f_ut_compress.o : f_ut_compress.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_ut_compress.c
+	ar r libgsievt.a f_ut_compress.o
+f_ut_time.o : f_ut_time.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_ut_time.c
+	ar r libgsievt.a f_ut_time.o
+f_ut_utime.o : f_ut_utime.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_ut_utime.c
+	ar r libgsievt.a f_ut_utime.o
+f_ut_wild.o : f_ut_wild.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_ut_wild.c
+	ar r libgsievt.a f_ut_wild.o
+f_find_peaks.o : f_find_peaks.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_find_peaks.c
+	ar r libgsievt.a f_find_peaks.o
+f_mbs_status.o : f_mbs_status.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_mbs_status.c
+	ar r libgsievt.a f_mbs_status.o
+f_ut_status.o : f_ut_status.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_ut_status.c
+	ar r libgsievt.a f_ut_status.o
+f_ut_seg_show.o : f_ut_seg_show.c
+	$(COM) $(DEF) -I$(INC) $(OPT) f_ut_seg_show.c
+	ar r libgsievt.a f_ut_seg_show.o
+f_radware.o : f_radware.c f_radware.h
+	$(COM) $(DEF) -I$(INC) $(OPT) f_radware.c
+	ar r libgsievt.a f_radware.o
+m_mbs_event_test.o : m_mbs_event_test.c
+	@echo "Build event test program using local files only"
+	$(LINK) $(DEF) -I$(INC) $(OPT) m_mbs_event_test.c -o  m_mbs_event_test $(LIB)
+
+m_histo.o : m_histo.c
+	@echo "Build histogram fit program"
+	$(LINK) $(DEF) -I$(INC) $(OPT) m_histo.c -o  m_histo $(LIB)
+
+m_histo_cli.o : m_histo_cli.c
+	@echo "Build histogram client test program"
+	$(LINK) $(DEF) -I$(INC) $(OPT) m_histo_cli.c -o  m_histo_cli $(LIB)
+
+m_histo_conv.o : m_histo_conv.c
+	@echo "Build histogram converter program"
+	$(LINK) $(DEF) -I$(INC) $(OPT) m_histo_conv.c -o  m_histo_conv $(LIB)
+
+m_mbs_status.o : m_mbs_status.c
+	@echo "Build MBS get status program"
+	$(LINK) $(DEF) -I$(INC) $(OPT) m_mbs_status.c -o  m_mbs_status $(LIB)
+
+m_daq_rate.o : m_daq_rate.c
+	@echo "Build MBS rate program"
+	$(LINK) $(DEF) -I$(INC) $(OPT) m_daq_rate.c -o  m_daq_rate $(LIB)
+
+clean:
+	rm m_mbs_event_test m_histo_cli m_histo_conv *.o libgsievt.a

@@ -1,0 +1,25 @@
+.KEEP_STATE:
+
+SOL_TYPE=
+
+OS=Linux
+
+COMPILE.C=	$(CC) -m32 $(CFLAGS) $(CPPFLAGS) -c $(INCLUDES)
+LINK.C=        $(CC)
+
+CC = gcc
+CFLAGS =   -DUNIX -DLINUX -DPOSIX 
+
+INCLUDES=  -I.  -I.. -I../..
+LDLIBS =     ../../../Data_Acq/xfer/V3_TCP/$(OS)/tslib.o ../../../Data_Acq/xfer/GANIL/$(OS)/GANILtslib.o   -lpthread  -L../../msglib/$(OS) -lmsg 
+
+%.o:	../%.c
+	$(COMPILE.C) $<
+ 
+TARGET = ../../TS_bin/$(OS)/relayTCP
+
+OBJECTS=  main.o midasTS.o
+
+include ../../Makefile.common
+
+

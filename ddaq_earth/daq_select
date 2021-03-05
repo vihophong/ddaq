@@ -1,0 +1,3 @@
+baseport=4444
+let theport=$baseport+$1
+export RCDAQPORT=$theport

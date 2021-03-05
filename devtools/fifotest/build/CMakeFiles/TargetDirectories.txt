@@ -1,0 +1,4 @@
+/home/phong/projects/ddaq/ddaq-git/ddaq_earth/devtools/build/CMakeFiles/rebuild_cache.dir
+/home/phong/projects/ddaq/ddaq-git/ddaq_earth/devtools/build/CMakeFiles/viewfifos.dir
+/home/phong/projects/ddaq/ddaq-git/ddaq_earth/devtools/build/CMakeFiles/edit_cache.dir
+/home/phong/projects/ddaq/ddaq-git/ddaq_earth/devtools/build/CMakeFiles/makefifos.dir

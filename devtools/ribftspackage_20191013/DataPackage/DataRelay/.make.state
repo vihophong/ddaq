@@ -1,0 +1,6 @@
+.MAKE_VERSION:	VERSION-1.0
+.BUILT_LAST_MAKE_RUN:
+main.o:	/opt/SUNWspro/SC5.0/include/CC/std/stdlib.h /usr/include/sys/feature_tests.h /usr/include/sys/isa_defs.h /usr/include/stdlib.h /usr/include/iso/stdlib_iso.h /opt/SUNWspro/SC5.0/include/CC/std/stdio.h /usr/include/stdio.h /usr/include/iso/stdio_iso.h /usr/include/sys/va_list.h /usr/include/stdio_tag.h /usr/include/stdio_impl.h /opt/SUNWspro/SC5.0/include/CC/std/string.h /usr/include/string.h /usr/include/iso/string_iso.h /opt/SUNWspro/SC5.0/include/CC/std/ctype.h
+.BUILT_LAST_MAKE_RUN:
+main.o:	/usr/include/ctype.h /usr/include/iso/ctype_iso.h /opt/SUNWspro/SC5.0/include/CC/std/time.h /usr/include/time.h /usr/include/sys/types.h /usr/include/sys/machtypes.h /usr/include/sys/int_types.h /usr/include/sys/select.h /usr/include/sys/time.h /usr/include/iso/time_iso.h /usr/include/sys/time_impl.h 
+	CC -DUNIX -DSOLARIS  -c  main.c

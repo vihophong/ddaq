@@ -1,0 +1,46 @@
+/*
+ * last modified : 15/02/16 14:30:29 
+ * 
+ * Hidetada Baba (RIKEN)
+ * 
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "transfer.h"
+
+void signal_block(){
+}
+int msgDefineMessage(unsigned int id, unsigned int xclass, unsigned int level, char *source, char *body) {
+  return 0;
+}
+
+int main(int argc, char argv[]){
+  const int buffersize = 64*1024;
+  char *data;
+  int *x,i;
+
+  data = malloc(buffersize+32);
+  if(!data){
+    printf("Cannot' malloc %d\n", buffersize);
+    return 0;
+  }
+
+  x = (int *)data;
+  for(i=0;i<64;i++){
+    *(x + i) = i;
+  }
+
+  printf("testsender\n");
+  transferBlockSize(buffersize);
+  transferInit("localhost");
+  for(i=0;i<50000;i++){
+    transferTxData(&data[32], 1, buffersize-32);
+  }
+  transferClose();
+
+  free(data);
+
+  return 0;
+}

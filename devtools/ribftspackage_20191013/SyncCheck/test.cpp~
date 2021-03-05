@@ -1,0 +1,21 @@
+#include <iostream>
+#include <fstream>
+#include <stdint.h>
+#include "syncSpyClass.hpp"
+
+int main(){
+  SpyDataSink MyDataSink;
+    MyDataSink= SpyDataSink( "/dev/shm/SHM_110205");
+    while(1){
+      std::vector<uint32_t> buffer;
+      int x=0;
+      x=MyDataSink.Spy(buffer);
+      std::cout<<"Size1="<<std::dec<<x<<" size2="<<buffer.size()<<std::endl
+      for(auto it:buffer){
+	std::cout<<std::hex<<*it<<std::endl;
+      }
+
+    }
+
+
+}

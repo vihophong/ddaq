@@ -1,0 +1,5 @@
+/home/phong/phong/ddaq/ddaq_earth/devtools/zmqtest/datasink/build/CMakeFiles/edit_cache.dir
+/home/phong/phong/ddaq/ddaq_earth/devtools/zmqtest/datasink/build/CMakeFiles/daqread.dir
+/home/phong/phong/ddaq/ddaq_earth/devtools/zmqtest/datasink/build/CMakeFiles/rebuild_cache.dir
+/home/phong/phong/ddaq/ddaq_earth/devtools/zmqtest/datasink/build/CMakeFiles/online.dir
+/home/phong/phong/ddaq/ddaq_earth/devtools/zmqtest/datasink/build/CMakeFiles/datasink.dir

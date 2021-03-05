@@ -1,0 +1,1 @@
+/usr/bin/c++    -rdynamic CMakeFiles/makefifos.dir/makefifos.cpp.o  -o makefifos 
