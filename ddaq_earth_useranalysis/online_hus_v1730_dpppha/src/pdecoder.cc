@@ -40,10 +40,7 @@
 #define TRG_PROBE_OFFSET 3000
 #define TRG_PROBE_GAIN 1000
 
-
-
-
-
+#define N_14BITS 16384
 using namespace std;
 
 MyMainFrame* mf;
@@ -57,14 +54,14 @@ TH1F *hratetmpscale;
 TH1F* hdummy;
 
 
-TH2F *hap1trace2d;
-TH2F *hap2trace2d;
+TH2F *hap1trace2d[V1730_MAX_N_CH];
+TH2F *hap2trace2d[V1730_MAX_N_CH];
 
-TH1F *henergy;
-TH1F *hap1trace1d;
-TH1F *hap2trace1d;
-TH1F *hdptrace1d;
-TH1F *htrgtrace1d;
+TH1F *henergy[V1730_MAX_N_CH];
+TH1F *hap1trace1d[V1730_MAX_N_CH];
+TH1F *hap2trace1d[V1730_MAX_N_CH];
+TH1F *hdptrace1d[V1730_MAX_N_CH];
+TH1F *htrgtrace1d[V1730_MAX_N_CH];
 
 typedef struct{
     int size;
@@ -160,14 +157,15 @@ void Init(){
     }
 
     hdummy=new TH1F("hdummy","hdummy",10,0,10);
-    henergy=new TH1F("henergy","henergy",10000,0,10000);
-    htrgtrace1d=new TH1F("htrgtrace1d","htrgtrace1d",10000,0,20000);
-    hdptrace1d=new TH1F("hdptrace1d","hdptrace1d",10000,0,20000);
-    hap1trace1d=new TH1F("hap1trace1d","hap1trace1d",10000,0,20000);
-    hap2trace1d=new TH1F("hap2trace1d","hap2trace1d",10000,0,20000);
-
-    hap1trace2d=new TH2F("hap1trace2d","hap1trace2d",10000,0,20000,1000,0,pow(2,14));
-    hap2trace2d=new TH2F("hap2trace2d","hap2trace2d",10000,0,20000,1000,0,pow(2,14));
+    for (Int_t ch=0;ch<V1730_MAX_N_CH;ch++){
+        henergy[ch]=new TH1F(Form("henergy%d",ch),Form("henergy%d",ch),500,0,30000);
+        htrgtrace1d[ch]=new TH1F(Form("htrgtrace1d%d",ch),Form("htrgtrace1d%d",ch),10000,0,20000);
+        hdptrace1d[ch]=new TH1F(Form("hdptrace1d%d",ch),Form("hdptrace1d%d",ch),10000,0,20000);
+        hap1trace1d[ch]=new TH1F(Form("hap1trace1d%d",ch),Form("hap1trace1d%d",ch),10000,0,20000);
+        hap2trace1d[ch]=new TH1F(Form("hap2trace1d%d",ch),Form("hap2trace1d%d",ch),10000,0,20000);
+        hap1trace2d[ch]=new TH2F(Form("hap1trace2d%d",ch),Form("hap1trace2d%d",ch),10000,0,20000,1000,-pow(2,13),pow(2,13));
+        hap2trace2d[ch]=new TH2F(Form("hap2trace2d%d",ch),Form("hap2trace2d%d",ch),10000,0,20000,1000,-pow(2,13),pow(2,13));
+    }
 
     hrate=new TH1F("hrate","hrate",V1730_N_CH,0,V1730_N_CH);
     hratetmp=new TH1F("hratetmp","hratetmp",V1730_N_CH,0,V1730_N_CH);
@@ -180,26 +178,27 @@ void Init(){
 }
 
 void ProcessSingleEvent(channelaggr_t* channelaggrdata, channel_t* channeldata){
-    if (channelaggrdata->dual_trace_flag&&channeldata->ch==0){
+    if (channelaggrdata->dual_trace_flag){
         for (unsigned long i=0;i<channeldata->ap1_sample.size();i++){
-            hap1trace1d->SetBinContent(i*2,channeldata->ap1_sample[i]);
-            hap1trace1d->SetBinContent(i*2+1,channeldata->ap1_sample[i]);
-            hap1trace2d->Fill(i*2*V1730_TIME_RESO,channeldata->ap1_sample[i]);
-            hap1trace2d->Fill((i*2+1)*V1730_TIME_RESO,channeldata->ap1_sample[i]);
+            hap1trace1d[channeldata->ch]->SetBinContent(i*2,channeldata->ap1_sample[i]);
+            hap1trace1d[channeldata->ch]->SetBinContent(i*2+1,channeldata->ap1_sample[i]);
+            hap1trace2d[channeldata->ch]->Fill(i*2*V1730_TIME_RESO,channeldata->ap1_sample[i]);
+            hap1trace2d[channeldata->ch]->Fill((i*2+1)*V1730_TIME_RESO,channeldata->ap1_sample[i]);
         }
         for (unsigned long i=0;i<channeldata->ap2_sample.size();i++){
-            hap2trace1d->SetBinContent(i*2,channeldata->ap2_sample[i]);
-            hap2trace1d->SetBinContent(i*2+1,channeldata->ap2_sample[i]);
-            hap2trace2d->Fill(i*2*V1730_TIME_RESO,channeldata->ap2_sample[i]);
-            hap2trace2d->Fill((i*2+1)*V1730_TIME_RESO,channeldata->ap2_sample[i]);
+            if (channeldata->ap2_sample[i]>=N_14BITS/2) channeldata->ap2_sample[i] = channeldata->ap2_sample[i]-N_14BITS;
+            hap2trace1d[channeldata->ch]->SetBinContent(i*2,channeldata->ap2_sample[i]);
+            hap2trace1d[channeldata->ch]->SetBinContent(i*2+1,channeldata->ap2_sample[i]);
+            hap2trace2d[channeldata->ch]->Fill(i*2*V1730_TIME_RESO,channeldata->ap2_sample[i]);
+            hap2trace2d[channeldata->ch]->Fill((i*2+1)*V1730_TIME_RESO,channeldata->ap2_sample[i]);
         }
         for (unsigned long i=0;i<channeldata->dp_sample.size();i++){
-            hdptrace1d->SetBinContent(i,channeldata->dp_sample[i]*DIGITAL_PROBE_GAIN+DIGITAL_PROBE_OFFSET);
+            hdptrace1d[channeldata->ch]->SetBinContent(i,channeldata->dp_sample[i]*DIGITAL_PROBE_GAIN+DIGITAL_PROBE_OFFSET);
         }
         for (unsigned long i=0;i<channeldata->trg_sample.size();i++){
-            htrgtrace1d->SetBinContent(i,channeldata->trg_sample[i]*TRG_PROBE_GAIN+TRG_PROBE_OFFSET);
+            htrgtrace1d[channeldata->ch]->SetBinContent(i,channeldata->trg_sample[i]*TRG_PROBE_GAIN+TRG_PROBE_OFFSET);
         }
-        henergy->Fill(channeldata->energy);
+        henergy[channeldata->ch]->Fill(channeldata->energy);
     }
 
 #ifdef SLOW_ONLINE
@@ -293,12 +292,15 @@ int process_event (Event * e)
                     // read data samples
                     for (int n=0;n<channeldata.n_samples/2+channeldata.n_samples%2;n++){
                         //! read channel samples
+                        int ap1= (words[pos]&0x3FFF);
+                        int ap2= (words[pos]&0x3FFF0000)>>16;
                         if (channelaggr.dual_trace_flag==1){//dual trace
-                            channeldata.ap1_sample.push_back((words[pos]&0x3FFF));//even sample of ap1
-                            channeldata.ap2_sample.push_back((words[pos]&0x3FFF0000)>>16);//even sample of ap2
+                            channeldata.ap1_sample.push_back(ap1);//even sample of ap1
+                            channeldata.ap2_sample.push_back(ap2);//even sample of ap2
                         }else{//single trace
-                            channeldata.ap1_sample.push_back((words[pos]&0x3FFF));//even sample of ap1
-                            channeldata.ap1_sample.push_back((words[pos]&0x3FFF0000)>>16);//odd sample of ap1
+                            channeldata.ap1_sample.push_back(ap1);//even sample of ap1
+                            channeldata.ap1_sample.push_back(ap2);//odd sample of ap1
+                            cout<<"single trace"<<endl;
                         }
                         channeldata.dp_sample.push_back((words[pos]&0x4000)>>14);//even sample
                         channeldata.dp_sample.push_back((words[pos]&0x40000000)>>30);//odd sample
