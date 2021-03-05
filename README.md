@@ -1,1 +1,1 @@
-# DDAQ
+# DDAQ: a DAQ system based on RCDAQ
