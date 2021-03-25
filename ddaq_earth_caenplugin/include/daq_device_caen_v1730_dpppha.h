@@ -55,6 +55,7 @@ public:
     int _trigger;
     int _trigger_handler;
     int _linknumber;
+    int _boardnumber;
     CAEN_DGTZ_DRS4Frequency_t _speed;
     int _delay;
 
@@ -91,6 +92,8 @@ public:
     FILE *f_ini;
 
     int ReloadCfgStatus; // Init to the bigger positive number
+
+    int n_datareaderror;
 
     //! fifo
     int fMAX_NEVT_FIFO_SEND;

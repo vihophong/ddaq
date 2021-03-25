@@ -23,11 +23,13 @@ DigitizerParams_t getDigitizerParams(char* filename)
       Params.PulsePolarity[i]=CAEN_DGTZ_PulsePolarityPositive;
       Params.DCOffset[i]=(int)((20+50) * 65535 / 100);
       Params.PreTriggerSize[i]=1000; //2000 ns
+      Params.dynamicRange[i]=0;
   }
 
   Params.analogProbes[0]=3;
   Params.analogProbes[1]=0;
   Params.digitalProbes=13;
+
 
 //  Params.virtualProbeMode = CAEN_DGTZ_DPP_VIRTUALPROBE_DUAL;
 //  Params.phaVirtualProbe1 = CAEN_DGTZ_DPP_PHA_VIRTUALPROBE1_trapezoid;
@@ -177,6 +179,11 @@ DigitizerParams_t getDigitizerParams(char* filename)
         if (channel==-1){for (int i=0;i<MaxNChannels;i++) Params.PreTriggerSize[i]=atoi(var);}
         else{Params.PreTriggerSize[channel]=atoi(var);}
     }
+    if (strcmp(ident,"Params.DynamicRange")==0){
+        if (channel==-1){for (int i=0;i<MaxNChannels;i++) Params.dynamicRange[i]=atoi(var);}
+        else{Params.dynamicRange[channel]=atoi(var);}
+    }
+
     if (strcmp(ident,"Params.DCOffset")==0){
         if (channel==-1){for (int i=0;i<MaxNChannels;i++) Params.DCOffset[i]= (int)((atof(var)+50) * 65535 / 100);}
         else{Params.DCOffset[channel]= (int)((atof(var)+50) * 65535 / 100);}
@@ -222,6 +229,8 @@ CAEN_DGTZ_DPP_PHA_Params_t getDPPPHAParams(char* filename)
       DPPParams.otrej[ch] = 0;
       DPPParams.trgwin[ch] = 0;  //Enable Rise time Discrimination. Options: 0->disabled; 1->enabled
       DPPParams.twwdt[ch] = 100;  //Rise Time Validation Window (ns)
+      DPPParams.dcomp[ch] = 0; // tt_filter compensation
+      DPPParams.trapbsl[ch] = 0; // trapzoid basseline adjuster
   }
   FILE *infile;
   infile=fopen(filename,"r");
@@ -271,6 +280,29 @@ CAEN_DGTZ_DPP_PHA_Params_t getDPPPHAParams(char* filename)
     if (strcmp(ident,"DPPPHA.depr_blho")==0) {if (channel==-1){for (int i=0;i<MaxNChannels;i++) DPPParams.blho[i]=atoi(var);}else{ DPPParams.blho[channel]=atoi(var);}}
     if (strcmp(ident,"DPPPHA.depr_otrej")==0) {if (channel==-1){for (int i=0;i<MaxNChannels;i++) DPPParams.otrej[i]=atoi(var);}else{ DPPParams.otrej[channel]=atoi(var);}}
   }
+
+//  for(int ch=0; ch<MaxNChannels; ch++) {
+//      printf("CHANNEL %d:\n",ch);
+//      printf("DPPParams.thr = %d\n",DPPParams.thr[ch]);
+//      printf("DPPParams.k = %d\n",DPPParams.k[ch]);
+//      printf("DPPParams.m = %d\n",DPPParams.m[ch]);
+//      printf("DPPParams.M = %d\n",DPPParams.M[ch]);
+//      printf("DPPParams.ftd = %d\n",DPPParams.ftd[ch]);
+//      printf("DPPParams.a = %d\n",DPPParams.a[ch]);
+//      printf("DPPParams.b = %d\n",DPPParams.b[ch]);
+//      printf("DPPParams.trgho = %d\n",DPPParams.trgho[ch]);
+//      printf("DPPParams.nsbl = %d\n",DPPParams.nsbl[ch]);
+//      printf("DPPParams.nspk = %d\n",DPPParams.nspk[ch]);
+//      printf("DPPParams.pkho = %d\n",DPPParams.pkho[ch]);
+//      printf("DPPParams.blho = %d\n",DPPParams.blho[ch]);
+//      printf("DPPParams.enf = %f\n",DPPParams.enf[ch]);
+//      printf("DPPParams.decimation = %d\n",DPPParams.decimation[ch]);
+//      printf("DPPParams.dgain = %d\n",DPPParams.dgain[ch]);
+//      printf("DPPParams.otrej = %d\n",DPPParams.otrej[ch]);
+//      printf("DPPParams.trgwin = %d\n",DPPParams.trgwin[ch]);
+//      printf("DPPParams.twwdt = %d\n",DPPParams.twwdt[ch]);
+//      printf("\t\t\t*********\t\t\t\n");
+//  }
   return DPPParams;
 }
 
@@ -365,10 +397,23 @@ int ProgramDigitizerDPPPHA(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_P
   ret |= CAEN_DGTZ_SetRecordLength(handle, Params.RecordLength);
   //ret |= CAEN_DGTZ_SetRecordLength(handle, 3000,1);
   //ret |= CAEN_DGTZ_SetDPPTriggerMode(handle,CAEN_DGTZ_DPP_TriggerMode_Coincidence);
+  for(i=0; i<MaxNChannels; i++) {
+    if (Params.ChannelMask & (1<<i)) {
+      // Set dynamic range
+      if (Params.dynamicRange[i]==0){
+          ret |= WriteRegisterBitmask2(handle,(0x1028|(i<<8)),0x0,0x1);
+          //printf("Set 2 Vpp dynamic range for channel %d\n",i);
+      }else{
+          ret |= WriteRegisterBitmask2(handle,(0x1028|(i<<8)),0x1,0x1);
+          //printf("Set 0.5 Vpp dynamic range for channel %d\n",i);
+      }
+    }
+  }
 
   ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle,ANALOG_TRACE_1,Params.analogProbes[0]);
   ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle,ANALOG_TRACE_2,Params.analogProbes[1]);
   ret |= CAEN_DGTZ_SetDPP_VirtualProbe(handle,DIGITAL_TRACE_1,Params.digitalProbes);
+
 
   //ret |= CAEN_DGTZ_SetDPP_PHA_VirtualProbe(handle,Params.virtualProbeMode,Params.phaVirtualProbe1,Params.phaVirtualProbe2,Params.phaDigitalProbe);
 

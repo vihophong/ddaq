@@ -42,6 +42,14 @@ target_link_libraries(rcdaqplugin_CAENdrs CAENDigitizer)
 target_link_libraries(rcdaqplugin_CAENdrs CAENVME)
 
 #-- Excutable tools
+add_executable(lupo ${PROJECT_SOURCE_DIR}/include/caen_lib.h ${PROJECT_SOURCE_DIR}/src/caen_lib.cc ${PROJECT_SOURCE_DIR}/include/lupo_lib.h ${PROJECT_SOURCE_DIR}/src/lupo_lib.cc
+    lupo.cc)
+target_link_libraries(lupo CAENVME)
+
+add_executable(dgtz_sendtrigger dgtz_sendtrigger.cc)
+target_link_libraries(dgtz_sendtrigger CAENDigitizer)
+target_link_libraries(dgtz_sendtrigger CAENVME)
+
 add_executable(cmdvmeA32
     cmdvmeA32.cc)
 target_link_libraries(cmdvmeA32 pthread)
@@ -89,7 +97,11 @@ install(TARGETS rcdaqplugin_CAENdrs
 )
 
 #binary installation
+install(TARGETS lupo DESTINATION bin)
+install(TARGETS dgtz_sendtrigger DESTINATION bin)
 install(TARGETS cmdvmeA32 DESTINATION bin)
 install(TARGETS cmdvmeA16 DESTINATION bin)
 install(TARGETS caendppconfig DESTINATION bin)
+
+
 

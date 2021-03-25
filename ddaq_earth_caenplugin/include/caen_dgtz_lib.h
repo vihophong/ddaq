@@ -52,6 +52,28 @@ typedef enum {
         OFF_HEADER= 0x00000002,			// Bit 1: 1 = include header, 0 = just samples data
 } OUTFILE_FLAGS;
 
+
+/* Error messages */
+typedef enum  {
+    ERR_NONE= 0,
+    ERR_CONF_FILE_NOT_FOUND,
+    ERR_DGZ_OPEN,
+    ERR_BOARD_INFO_READ,
+    ERR_INVALID_BOARD_TYPE,
+    ERR_DGZ_PROGRAM,
+    ERR_MALLOC,
+    ERR_RESTART,
+    ERR_INTERRUPT,
+    ERR_READOUT,
+    ERR_EVENT_BUILD,
+    ERR_HISTO_MALLOC,
+    ERR_UNHANDLED_BOARD,
+    ERR_OUTFILE_WRITE,
+    ERR_OVERTEMP,
+    ERR_BOARD_FAILURE,
+    ERR_DUMMY_LAST,
+} ERROR_CODES;
+
 typedef struct{
         float cal[MAX_SET];
         float offset[MAX_SET];
@@ -124,27 +146,6 @@ typedef struct WaveDumpRun_t {
 } WaveDumpRun_t;
 
 
-/* Error messages */
-typedef enum  {
-    ERR_NONE= 0,
-    ERR_CONF_FILE_NOT_FOUND,
-    ERR_DGZ_OPEN,
-    ERR_BOARD_INFO_READ,
-    ERR_INVALID_BOARD_TYPE,
-    ERR_DGZ_PROGRAM,
-    ERR_MALLOC,
-    ERR_RESTART,
-    ERR_INTERRUPT,
-    ERR_READOUT,
-    ERR_EVENT_BUILD,
-    ERR_HISTO_MALLOC,
-    ERR_UNHANDLED_BOARD,
-    ERR_OUTFILE_WRITE,
-        ERR_OVERTEMP,
-        ERR_BOARD_FAILURE,
-
-    ERR_DUMMY_LAST,
-} ERROR_CODES;
 
 /* Function prototypes */
 int ParseConfigFile(FILE *f_ini, WaveDumpConfig_t *WDcfg);

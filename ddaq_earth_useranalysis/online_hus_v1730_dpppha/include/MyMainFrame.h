@@ -21,9 +21,9 @@
 
 #define CAL_RATE_DGTZ 1
 
-#define MAX_N_TH1 32
-#define MAX_N_TH2 32
-#define MAX_N_ALL 64
+#define MAX_N_TH1 100
+#define MAX_N_TH2 100
+#define MAX_N_ALL 200
 
 #define MAX_CH_RATEUPDATE 100
 

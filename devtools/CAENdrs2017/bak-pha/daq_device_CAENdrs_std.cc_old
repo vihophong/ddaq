@@ -1,0 +1,667 @@
+
+#include <iostream>
+
+#include <daq_device_CAENdrs_std.h>
+#include <string.h>
+
+#include <CAENDigitizer.h>
+#include <CAENDigitizerType.h>
+
+#define VME_INTERRUPT_LEVEL      1
+#define VME_INTERRUPT_STATUS_ID  0xAAAA
+#define INTERRUPT_MODE           CAEN_DGTZ_IRQ_MODE_ROAK
+
+
+using namespace std;
+
+daq_device_CAENdrs_std::daq_device_CAENdrs_std(const int eventtype
+					       , const int subeventid
+					       , const int linknumber
+					       , const int trigger  // do I give the system trigger?
+					       , const int speed
+					       , const int delay)
+{
+  m_eventType  = eventtype;
+  m_subeventid = subeventid;
+
+  _linknumber = linknumber;
+
+  handle = 0;
+  _Event742 = 0;
+
+  //modified by Phong
+  int node = speed;
+
+  _warning = 0;
+
+  cout << "*************** opening Digitizer" << endl;
+  _broken = CAEN_DGTZ_OpenDigitizer( CAEN_DGTZ_PCI_OpticalLink, _linknumber , node, 0 ,&handle);
+  cout << "*************** " << _broken  << endl;
+
+
+
+  _broken =  CAEN_DGTZ_Reset(handle);
+
+  if ( _broken )
+    {
+      cout << " Error in CAEN_DGTZ_OpenDigitizer " << _broken << endl;
+      return;
+    }
+
+  _trigger_handler=0;
+  if (trigger)   _trigger_handler=1;
+ 
+
+  switch (speed)
+    {
+    case 0:
+      _speed = CAEN_DGTZ_DRS4_1GHz;
+      break;
+      
+    case 1:
+      _speed = CAEN_DGTZ_DRS4_2_5GHz;
+      break;
+      
+    case 2:
+      _speed = CAEN_DGTZ_DRS4_5GHz;
+      break;
+      
+    default:
+      _speed = CAEN_DGTZ_DRS4_1GHz;
+      
+    }
+  
+  _delay = delay;
+
+  if ( _trigger_handler )
+    {
+      cout << __LINE__ << "  " << __FILE__ << " registering triggerhandler " << endl;
+      _th  = new CAENdrsTriggerHandler (handle, m_eventType);
+      registerTriggerHandler ( _th);
+    }
+  else
+    {
+      _th = 0;
+    }
+
+}
+
+daq_device_CAENdrs_std::~daq_device_CAENdrs_std()
+{
+
+  if (_th)
+    {
+      clearTriggerHandler();
+      delete _th;
+      _th = 0;
+    }
+
+  if ( _Event742) 
+    {
+      CAEN_DGTZ_FreeEvent(handle, (void**)&_Event742);
+    }
+  CAEN_DGTZ_CloseDigitizer(handle);
+
+}
+
+
+int  daq_device_CAENdrs_std::init()
+{
+  
+  if ( _broken ) 
+    {
+      
+      return 0; //  we had a catastrophic failure
+    } 
+
+
+  // set one-event readout
+  _broken = CAEN_DGTZ_SetMaxNumEventsBLT(handle, 1);
+
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+
+
+  /*
+  // enable adding the trigger channels to teh readout
+  _broken = CAEN_DGTZ_SetFastTriggerDigitizing(handle,CAEN_DGTZ_ENABLE);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+
+  // no trigger front panel output
+  _broken = CAEN_DGTZ_SetFastTriggerMode(handle,CAEN_DGTZ_TRGMODE_ACQ_ONLY);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+    */
+
+
+  // set nim levels for triggers
+  _broken = CAEN_DGTZ_SetIOLevel(handle, CAEN_DGTZ_IOLevel_NIM);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return  0;
+    }
+
+  //WriteRegisterBitmask();
+  //Set dynamic range(just optional)
+
+  _broken = CAEN_DGTZ_WriteRegister(handle, 0x8000, 0x01000114);  // Channel Control Reg (indiv trg, seq readout) ??
+
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1028, 0x1);  // set dynamic range of channel 1
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1128, 0x1);  // set dynamic range of channel 2
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1228, 0x1);  // set dynamic range of channel 3
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1328, 0x1);  // set dynamic range of channel 4
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1428, 0x1);  // set dynamic range of channel 5
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1528, 0x1);  // set dynamic range of channel 6
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1628, 0x1);  // set dynamic range of channel 7
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1728, 0x1);  // set dynamic range of channel 8
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1828, 0x1);  // set dynamic range of channel 9
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1928, 0x1);  // set dynamic range of channel 10
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1A28, 0x1);  // set dynamic range of channel 11
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1B28, 0x1);  // set dynamic range of channel 12
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1C28, 0x1);  // set dynamic range of channel 13
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1D28, 0x1);  // set dynamic range of channel 14
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1E28, 0x1);  // set dynamic range of channel 15
+  _broken |= CAEN_DGTZ_WriteRegister(handle, 0x1F28, 0x1);  // set dynamic range of channel 16
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return  0;
+    }
+
+  //Set aquisition mode
+  _broken |= CAEN_DGTZ_SetDPPAcquisitionMode(handle, CAEN_DGTZ_DPP_ACQ_MODE_List, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return  0;
+    }
+  //set default record length
+      _broken |= CAEN_DGTZ_SetRecordLength(handle, 1024);
+      if ( _broken )
+        {
+          cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+          return  0;
+        }
+
+
+
+  if ( _delay < 0 )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " warning: delay parameter out of range, allowed is 0-100 : " << _delay  << endl;
+      _delay = 0;
+      _warning = 1;
+    }
+  if ( _delay >100  )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " warning: delay parameter out of range, allowed is 0-100 : " << _delay  << endl;
+      _delay = 100;
+      _warning = 1;
+    }
+      
+
+  /*
+  // extra delay after stop
+  _broken = CAEN_DGTZ_SetPostTriggerSize(handle,_delay);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+    */
+
+
+  // configure interrupts and trigger
+  _broken |= CAEN_DGTZ_SetInterruptConfig( handle, CAEN_DGTZ_ENABLE,
+                                           VME_INTERRUPT_LEVEL, VME_INTERRUPT_STATUS_ID,
+                                           1, INTERRUPT_MODE);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+
+  _broken = CAEN_DGTZ_SetAcquisitionMode(handle, CAEN_DGTZ_SW_CONTROLLED);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+  _broken = CAEN_DGTZ_SetExtTriggerInputMode(handle, CAEN_DGTZ_TRGMODE_ACQ_ONLY);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+/*
+  // enable all 4 groups
+  _broken = CAEN_DGTZ_SetGroupEnableMask(handle, 0xf);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+*/
+  // enable all channel by default
+  _broken = CAEN_DGTZ_SetChannelEnableMask(handle, 0x3);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+/*
+  // set frequency and correction
+  _broken = CAEN_DGTZ_SetDRS4SamplingFrequency(handle, (CAEN_DGTZ_DRS4Frequency_t) _speed) ;
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+  _broken = CAEN_DGTZ_LoadDRS4CorrectionData(handle, (CAEN_DGTZ_DRS4Frequency_t) _speed);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+  _broken = CAEN_DGTZ_EnableDRS4Correction(handle);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+  */
+
+/*
+  // set DC offsets
+
+  unsigned int i;
+  for ( i = 0; i < 32; i++)
+    {
+      _broken = CAEN_DGTZ_SetChannelDCOffset(handle,i, 0x8f00);
+      if ( _broken )
+	{
+	  cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+	  return 0;
+	}
+
+    }
+    */
+
+
+  // set DC offsets default
+
+  unsigned int i;
+  for ( i = 0; i < 16; i++)
+    {
+      _broken = CAEN_DGTZ_SetChannelDCOffset(handle,i, 4768);
+      if ( _broken )
+        {
+          cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+          return 0;
+        }
+    }
+
+  // Set how many events to accumulate in cthe board memory before being available for readout
+   _broken = CAEN_DGTZ_SetDPPEventAggregation(handle, 1, 0);
+   if ( _broken )
+     {
+       cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+       return 0;
+     }
+   /* Set the mode used to syncronize the acquisition between different boards.
+   In this example the sync is disabled */
+
+   _broken = CAEN_DGTZ_SetRunSynchronizationMode(handle, CAEN_DGTZ_RUN_SYNC_Disabled);
+
+   if ( _broken )
+     {
+       cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+       return 0;
+     }
+
+   //Set default DPP parameters
+    CAEN_DGTZ_DPP_PHA_Params_t DPPParams;
+    for(int ch=0; ch<16; ch++) {
+        DPPParams.thr[ch] = 50;
+        DPPParams.k[ch] = 1350;     // Trapezoid Rise Time (N*2ns)
+        DPPParams.m[ch] = 500;      // Trapezoid Flat Top  (N*2ns)
+        DPPParams.M[ch] = 2500;      // Decay Time Constant (N*2ns) HACK-FPEP the one expected from fitting algorithm?
+        DPPParams.ftd[ch] = 500;    // Flat top delay (peaking time) (N*2ns) ??
+        DPPParams.a[ch] = 8;       // Trigger Filter smoothing factor
+        DPPParams.b[ch] = 500;     // Input Signal Rise time (N*2ns)
+        DPPParams.trgho[ch] = 1300;  // Trigger Hold Off
+        DPPParams.nsbl[ch] = 4; // 3 = bx10 = 64 samples
+        DPPParams.nspk[ch] = 2;
+        DPPParams.pkho[ch] = 2500;
+        DPPParams.blho[ch] = 1000;
+        DPPParams.enf[ch] = 2.0; // Energy Normalization Factor
+        DPPParams.decimation[ch] = 0;
+        DPPParams.dgain[ch] = 8;
+        DPPParams.otrej[ch] = 0;
+        DPPParams.trgwin[ch] = 0;
+        DPPParams.twwdt[ch] = 0;
+    }
+    _broken =  CAEN_DGTZ_SetDPPParameters(handle, 0xFFFF, &DPPParams);
+    if ( _broken )
+      {
+        cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+        return 0;
+      }
+
+  /*
+  if ( _Event742 )
+    {
+      _broken =  CAEN_DGTZ_AllocateEvent(handle, (void**)&_Event742);
+      if ( _broken )
+	{
+	  cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+	  return 0;
+	}
+
+    }
+    */
+    //enable external trigger
+    _broken =CAEN_DGTZ_WriteRegister(handle,0x8110,0x4000FFFF);
+    if ( _broken )
+    {
+        cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+        return 0;
+    }
+  //Allocate memory buffer!
+    _broken = CAEN_DGTZ_MallocReadoutBuffer(handle, &sbuffer_t, &AllocatedSize);
+    if ( _broken )
+      {
+        cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+        return 0;
+      }
+    _broken = CAEN_DGTZ_MallocDPPEvents(handle, sEvents_t, &AllocatedSizeDPP);
+    if ( _broken )
+      {
+        cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+        return 0;
+      }
+
+
+  // and we trigger rearm with our event type so it takes effect
+  rearm (m_eventType);
+
+  _broken = CAEN_DGTZ_SWStartAcquisition(handle);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+  return 0;
+
+}
+
+// the put_data function
+
+int daq_device_CAENdrs_std::put_data(const int etype, int * adr, const int length )
+{
+
+  if ( _broken )
+    {
+      //      cout << __LINE__ << "  " << __FILE__ << " broken ";
+      //      identify();
+      return 0; //  we had a catastrophic failure
+    }
+
+  if (etype != m_eventType )  // not our id
+    {
+      return 0;
+    }
+
+  if ( length < max_length(etype) )
+    {
+      //      cout << __LINE__ << "  " << __FILE__ << " length " << length <<endl;
+      return 0;
+    }
+
+
+  int len = 0;
+
+  sevt =  (subevtdata_ptr) adr;
+  // set the initial subevent length
+  sevt->sub_length =  SEVTHEADERLENGTH;
+
+  // update id's etc
+  sevt->sub_id =  m_subeventid;
+  sevt->sub_type=4;
+  sevt->sub_decoding = 85;
+  sevt->reserved[0] = 0;
+  sevt->reserved[1] = 0;
+
+
+  uint32_t sBufferSize=0;
+  while ( sBufferSize == 0)
+    {
+      // Read data from the board
+      //_broken = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, (char *) &sevt->data, &buffersize);
+      _broken = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, sbuffer_t, &sBufferSize);
+      if ( _broken )
+    {
+      cout << __FILE__ << " " << __LINE__ << " _broken = " << _broken<< endl;
+      return 1;
+    }
+      //      cout << __FILE__ << " " << __LINE__ << " buffersize = " << buffersize << endl;
+    }
+      //if ( sBufferSize == 0) {
+      //    sevt->sub_length=0;
+      //    return 0;
+     // }
+  uint32_t NumEvents_t[16];
+  _broken =CAEN_DGTZ_GetDPPEvents(handle, sbuffer_t, sBufferSize, sEvents_t, NumEvents_t);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " << __LINE__ << " _broken = " << _broken<< endl;
+      return 1;
+    }
+
+
+  CAEN_DGTZ_DPP_PHA_Event_t ** Events_t= (CAEN_DGTZ_DPP_PHA_Event_t**) (sEvents_t);
+  int ch,ev;
+  //int evtbuff[16000];//max capacity=1000 event per all
+  int ipos=0;
+
+  int  *d=(int*) &sevt->data;
+
+
+  for(ch=0; ch<16; ch++) {
+      if (!(0x3 & (1<<ch))) continue;
+      for(ev=0; ev<NumEvents_t[ch]; ev++){
+          if (Events_t[ch][ev].Energy<=0) continue;
+          *d++ = ch;
+          ipos++;
+          *d++ = Events_t[ch][ev].TimeTag;
+          ipos++;
+          *d++ = Events_t[ch][ev].Energy;
+          ipos++;
+          *d++ = Events_t[ch][ev].Format;
+          ipos++;
+          *d++ = Events_t[ch][ev].Extras;
+          ipos++;
+          *d++ = Events_t[ch][ev].Extras2;
+          ipos++;
+      }
+  }
+  //buffersize=ipos*sizeof(int);
+  //len = buffersize /4;
+  //len += len%2;//sevt->sub_padding;
+  int padding=ipos%2;
+  sevt->sub_padding = ipos;
+  ipos=ipos+padding;
+  sevt->sub_length += ipos;
+  //cout << __LINE__ << "  " << __FILE__ << " returning "  << sevt->sub_length << endl;
+  return  sevt->sub_length;
+}
+
+
+
+int daq_device_CAENdrs_std::endrun()
+{
+  if ( _broken ) 
+    {
+      return 0; //  we had a catastrophic failure
+    }
+
+  //  cout << __LINE__ << "  " << __FILE__ << " ending run " << endl;
+  _broken = CAEN_DGTZ_SWStopAcquisition(handle);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      
+    }
+  return _broken;
+
+}
+
+
+void daq_device_CAENdrs_std::identify(std::ostream& os) const
+{
+
+  CAEN_DGTZ_BoardInfo_t       BoardInfo;
+
+
+  if ( _broken) 
+    {
+      os << "CAEN 1742 Digitizer Event Type: " << m_eventType 
+	 << " Subevent id: " << m_subeventid 
+	 << " ** not functional ** " << endl;
+    }
+  else
+    {
+      
+      int ret = CAEN_DGTZ_GetInfo(handle, &BoardInfo);
+      if ( ret )
+	{
+	  cout << " Error in CAEN_DGTZ_GetInfo" << endl;
+	  return;
+	}
+      
+      os << "CAEN 1742 Digitizer STD Model " << BoardInfo.ModelName
+	 << " Event Type: " << m_eventType 
+	 << " Subevent id: " << m_subeventid 
+	 << " Firmware "     << BoardInfo.ROC_FirmwareRel << " / " << BoardInfo.AMC_FirmwareRel 
+	 << " speed "  << getGS() <<  "GS"
+	 << " delay "  << _delay <<  "% ";
+      if (_trigger_handler) os << " *Trigger" ;
+      if (_warning) os << " **** warning - check setup parameters ****";
+      os << endl;
+
+    }
+}
+
+int daq_device_CAENdrs_std::max_length(const int etype) const
+{
+  if (etype != m_eventType) return 0;
+  return  (14900);
+}
+
+
+// the rearm() function
+int  daq_device_CAENdrs_std::rearm(const int etype)
+{
+  if ( _broken ) 
+    {
+      //      cout << __LINE__ << "  " << __FILE__ << " broken ";
+      //      identify();
+      return 0; //  we had a catastrophic failure
+    }
+
+  if (etype != m_eventType) return 0;
+
+  return 0;
+}
+
+int daq_device_CAENdrs_std::SetConfigRegisterBit( const int bit)
+{
+  const unsigned int forbidden_mask = 0x0FFFE7B7;  // none of these bits must be touched
+  unsigned int pattern = 1<<bit;
+  if ( pattern & forbidden_mask)
+    {
+      cout << " attemt to set reserved bit: " << bit << endl;
+      return 1;
+    }
+
+  return CAEN_DGTZ_WriteRegister(handle,CAEN_DGTZ_BROAD_CH_CONFIGBIT_SET_ADD, pattern);
+}
+
+int daq_device_CAENdrs_std::ClearConfigRegisterBit( const int bit)
+{
+  const unsigned int forbidden_mask = 0x0FFFE7B7;  // none of these bits must be touched
+  unsigned int pattern = 1<<bit;
+  if ( pattern & forbidden_mask)
+    {
+      cout << " attemt to set reserved bit: " << bit << endl;
+      return 1;
+    }
+
+  return CAEN_DGTZ_WriteRegister(handle,CAEN_DGTZ_BROAD_CH_CLEAR_CTRL_ADD, pattern);
+}
+
+
+float daq_device_CAENdrs_std::getGS() const
+{
+  if ( _broken ) 
+    {
+      //      cout << __LINE__ << "  " << __FILE__ << " broken ";
+      //      identify();
+      return 0; //  we had a catastrophic failure
+    }
+
+  switch ( _speed)
+    {
+
+    case CAEN_DGTZ_DRS4_1GHz:
+      return 1;
+      break;
+
+    case CAEN_DGTZ_DRS4_2_5GHz:
+      return 2.5;
+      break;
+
+    case CAEN_DGTZ_DRS4_5GHz:
+      return 5;
+      break;
+
+    default:
+      return 0;
+      break;
+    }
+
+}
+
+int daq_device_CAENdrs_std::WriteRegisterBitmask(int32_t handle, uint32_t address, uint32_t data, uint32_t mask) {
+  int32_t ret = CAEN_DGTZ_Success;
+  uint32_t d32 = 0xFFFFFFFF;
+
+  ret = CAEN_DGTZ_ReadRegister(handle, address, &d32);
+  if(ret != CAEN_DGTZ_Success)
+    return ret;
+
+  data &= mask;
+  d32 &= ~mask;
+  d32 |= data;
+  ret = CAEN_DGTZ_WriteRegister(handle, address, d32);
+  return ret;
+}

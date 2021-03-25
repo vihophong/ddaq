@@ -28,6 +28,7 @@ typedef struct
   CAEN_DGTZ_DPP_AcqMode_t AcqMode;
   CAEN_DGTZ_IOLevel_t IOlev;
   CAEN_DGTZ_TriggerMode_t ExtTriggerInputMode;
+  int dynamicRange[MaxNChannels];
   uint32_t DCOffset[MaxNChannels];
   uint32_t PreTriggerSize[MaxNChannels];
   uint32_t reg_address[100];
@@ -36,6 +37,7 @@ typedef struct
   uint32_t nreg;
   int analogProbes[2];
   int digitalProbes;
+
   //CAEN_DGTZ_DPP_VirtualProbe_t virtualProbeMode;
   //CAEN_DGTZ_DPP_PHA_VirtualProbe1_t phaVirtualProbe1;
   //CAEN_DGTZ_DPP_PHA_VirtualProbe2_t phaVirtualProbe2;

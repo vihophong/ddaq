@@ -1,0 +1,638 @@
+
+#include <iostream>
+
+#include <daq_device_CAENdrs_std.h>
+#include <string.h>
+
+#include <CAENDigitizer.h>
+#include <CAENDigitizerType.h>
+
+#define VME_INTERRUPT_LEVEL      1
+#define VME_INTERRUPT_STATUS_ID  0xAAAA
+#define INTERRUPT_MODE           CAEN_DGTZ_IRQ_MODE_ROAK
+
+
+using namespace std;
+
+daq_device_CAENdrs_std::daq_device_CAENdrs_std(const int eventtype
+                           , const int subeventid
+                           , const int linknumber
+                           , const int trigger  // do I give the system trigger?
+                           , const int speed
+                           , const int delay)
+{
+  m_eventType  = eventtype;
+  m_subeventid = subeventid;
+
+  _linknumber = linknumber;
+
+  handle = 0;
+  _Event742 = 0;
+
+  //modified by Phong  
+  b = speed;
+  _warning = 0;
+  ret=0;
+
+  //load parms
+  sprintf(configfile,"m%i.conf",b);
+  cout<<configfile<<endl;
+  dgtz_parms[b]=getDigitizerParams(configfile);
+  dpp_parms[b]=getDPPParams(configfile);
+  cout << "*************** opening Digitizer" << endl;
+  //_broken = CAEN_DGTZ_OpenDigitizer( CAEN_DGTZ_PCI_OpticalLink, _linknumber , node, 0 ,&handle);
+  //cout << "*************** " << _broken  << endl;
+  //OPEN digitizer, get handle
+  ret = CAEN_DGTZ_OpenDigitizer(dgtz_parms[b].LinkType, dgtz_parms[b].LinkNum, dgtz_parms[b].BoardNum, dgtz_parms[b].VMEBaseAddress, &handle);
+  if (ret) {
+    printf("Can not open digitizer!\n");
+  }
+  /* Once we have the handler to the digitizer, we use it to call the other functions */
+  ret = CAEN_DGTZ_GetInfo(handle, &BoardInfo);
+  if (ret) {
+    printf("Can't read board info\n");
+    exit(0);
+  }
+  printf("Connected to CAEN Digitizer Model %s as board %i \nROC FPGA Release is %s\nAMC FPGA Release is %s\n ------------\n",
+        BoardInfo.ModelName, b,BoardInfo.ROC_FirmwareRel,BoardInfo.AMC_FirmwareRel);
+
+  // Check firmware revision (only DPP firmware can be used with this Demo) */
+ int MajorNumber;
+  sscanf(BoardInfo.AMC_FirmwareRel, "%d", &MajorNumber);
+  if (MajorNumber != 131 && MajorNumber != 132&& MajorNumber != 136 ) {
+    printf("This digitizer has not a DPP-PSD firmware\n");
+  }
+  _broken =  CAEN_DGTZ_Reset(handle);
+
+  if ( _broken )
+    {
+      cout << " Error in CAEN_DGTZ_OpenDigitizer " << _broken << endl;
+      return;
+    }
+
+  _trigger_handler=0;
+  if (trigger)   _trigger_handler=1;
+
+
+  switch (speed)
+    {
+    case 0:
+      _speed = CAEN_DGTZ_DRS4_1GHz;
+      break;
+
+    case 1:
+      _speed = CAEN_DGTZ_DRS4_2_5GHz;
+      break;
+
+    case 2:
+      _speed = CAEN_DGTZ_DRS4_5GHz;
+      break;
+
+    default:
+      _speed = CAEN_DGTZ_DRS4_1GHz;
+
+    }
+
+  _delay = delay;
+
+  if ( _trigger_handler )
+    {
+      cout << __LINE__ << "  " << __FILE__ << " registering triggerhandler " << endl;
+      _th  = new CAENdrsTriggerHandler (handle, m_eventType);
+      registerTriggerHandler ( _th);
+    }
+  else
+    {
+      _th = 0;
+    }
+
+}
+
+void daq_device_CAENdrs_std::identify(std::ostream& os) const
+{
+
+  if ( _broken)
+    {
+      os << "CAEN 1730 Digitizer Event Type: " << m_eventType
+     << " Subevent id: " << m_subeventid
+     << " ** not functional ** " << endl;
+    }
+  else
+    {
+      os << "CAEN 1742 Digitizer STD Model " << BoardInfo.ModelName
+     << " Event Type: " << m_eventType
+     << " Subevent id: " << m_subeventid
+     << " Firmware "     << BoardInfo.ROC_FirmwareRel << " / " << BoardInfo.AMC_FirmwareRel
+     << " delay "  << _delay <<  "% ";
+      if (_trigger_handler) os << " *Trigger" ;
+      if (_warning) os << " **** warning - check setup parameters ****";
+      os << endl;
+
+    }
+}
+
+
+daq_device_CAENdrs_std::~daq_device_CAENdrs_std()
+{
+
+  if (_th)
+    {
+      clearTriggerHandler();
+      delete _th;
+      _th = 0;
+    }
+
+  /*
+  if ( _Event742)
+    {
+      CAEN_DGTZ_FreeEvent(handle, (void**)&_Event742);
+    }
+  */
+
+  CAEN_DGTZ_CloseDigitizer(handle);
+  CAEN_DGTZ_FreeReadoutBuffer(&sbuffer_t);
+  CAEN_DGTZ_FreeDPPEvents(handle, sEvents_t);
+  CAEN_DGTZ_FreeDPPWaveforms(handle, sWaveform_t);
+
+
+}
+
+
+int  daq_device_CAENdrs_std::init()
+{
+
+  if ( _broken )
+    {
+
+      return 0; //  we had a catastrophic failure
+    }
+  //! Program digitizer here
+  _broken = ProgramDigitizer(handle, dgtz_parms[b], dpp_parms[b],configfile);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+
+  /* Allocate memory for the readout buffer */
+  ret |= CAEN_DGTZ_MallocReadoutBuffer(handle, &sbuffer_t, &sAllocatedSize);
+  /* Allocate memory for the events */
+  ret |= CAEN_DGTZ_MallocDPPEvents(handle, sEvents_t, &sAllocatedSize);
+  /* Allocate memory for the waveforms */
+  ret |= CAEN_DGTZ_MallocDPPWaveforms(handle, &sWaveform_t, &sAllocatedSize);
+  if (ret) {
+      cout<<"Can't Allocate Memory Buffer!"<<endl;
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+  }
+
+  // and we trigger rearm with our event type so it takes effect
+  rearm (m_eventType);
+  _broken = CAEN_DGTZ_SWStartAcquisition(handle);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+  return 0;
+
+}
+
+// the put_data function
+
+int daq_device_CAENdrs_std::put_data(const int etype, int * adr, const int length )
+{
+
+    if ( _broken )
+      {
+        //      cout << __LINE__ << "  " << __FILE__ << " broken ";
+        //      identify();
+        return 0; //  we had a catastrophic failure
+      }
+
+    if (etype != m_eventType )  // not our id
+      {
+        return 0;
+      }
+
+    if ( length < max_length(etype) )
+      {
+        //      cout << __LINE__ << "  " << __FILE__ << " length " << length <<endl;
+        return 0;
+      }
+
+
+    int len = 0;
+
+    sevt =  (subevtdata_ptr) adr;
+    // set the initial subevent length
+    sevt->sub_length =  SEVTHEADERLENGTH;
+
+    // update id's etc
+    sevt->sub_id =  m_subeventid;
+    sevt->sub_type=4;
+    sevt->sub_decoding = 85;
+    sevt->reserved[0] = 0;
+    sevt->reserved[1] = 0;
+
+    uint32_t sBufferSize = 0;
+
+    while ( sBufferSize == 0)
+      {
+        // Read data from the board
+        _broken = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, sbuffer_t, &sBufferSize);
+        if ( _broken )
+      {
+        cout << __FILE__ << " " << __LINE__ << " _broken = " << _broken<< endl;
+        return 1;
+      }
+        //      cout << __FILE__ << " " << __LINE__ << " buffersize = " << buffersize << endl;
+      }
+        //if (sBufferSize==0) return 0;
+
+    uint32_t NumEvents_t[16];
+    _broken =CAEN_DGTZ_GetDPPEvents(handle, sbuffer_t, sBufferSize, sEvents_t, NumEvents_t);
+    if ( _broken )
+          {
+            cout << __FILE__ << " " << __LINE__ << " _broken = " << _broken<< endl;
+            return 1;
+          }
+        Events_t= (CAEN_DGTZ_DPP_PSD_Event_t**) (sEvents_t);
+
+        int ch,ev;
+        //int evtbuff[16000];//max capacity=1000 event per all
+        int ipos=0;
+        int  *d=(int*) &sevt->data;
+
+        for(ch=0; ch<MAX_N_CHANNEL; ch++) {
+            if (!(0x1 & (1<<ch))) continue;
+            for(ev=0; ev<NumEvents_t[ch]; ev++){
+                if (Events_t[ch][ev].ChargeLong<=0) continue;
+                *d++ = b;
+                ipos++;
+                *d++ = ch;
+                ipos++;
+                *d++ = Events_t[ch][ev].TimeTag;
+                ipos++;
+                *d++ = (uint32_t) Events_t[ch][ev].ChargeShort;
+                ipos++;
+                *d++ = (uint32_t) Events_t[ch][ev].ChargeLong;
+                ipos++;
+                *d++ = Events_t[ch][ev].Extras;
+                ipos++;
+                *d++ = (uint32_t) Events_t[ch][ev].Baseline;
+                ipos++;
+                //uint16_t *WaveLine;
+                //CAEN_DGTZ_DecodeDPPWaveforms(handle, &Events_t[ch][ev], sWaveform_t); //decode wf cost computing time
+                //Waveform_t = (CAEN_DGTZ_DPP_PSD_Waveforms_t*)(sWaveform_t);
+            }
+        }
+
+
+        int padding=ipos%2;
+        sevt->sub_padding = ipos;
+        ipos=ipos+padding;
+        sevt->sub_length += ipos;
+        //cout << __LINE__ << "  " << __FILE__ << " returning "  << sevt->sub_length << endl;
+        return  sevt->sub_length;
+}
+
+
+
+int daq_device_CAENdrs_std::endrun()
+{
+  if ( _broken )
+    {
+      return 0; //  we had a catastrophic failure
+    }
+
+  //  cout << __LINE__ << "  " << __FILE__ << " ending run " << endl;
+  _broken = CAEN_DGTZ_SWStopAcquisition(handle);
+
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+
+    }
+  return _broken;
+
+}
+
+
+
+int daq_device_CAENdrs_std::max_length(const int etype) const
+{
+  if (etype != m_eventType) return 0;
+  return  (14900);
+}
+
+
+// the rearm() function
+int  daq_device_CAENdrs_std::rearm(const int etype)
+{
+  if ( _broken )
+    {
+      //      cout << __LINE__ << "  " << __FILE__ << " broken ";
+      //      identify();
+      return 0; //  we had a catastrophic failure
+    }
+
+  if (etype != m_eventType) return 0;
+
+  return 0;
+}
+
+int daq_device_CAENdrs_std::SetConfigRegisterBit( const int bit)
+{
+  const unsigned int forbidden_mask = 0x0FFFE7B7;  // none of these bits must be touched
+  unsigned int pattern = 1<<bit;
+  if ( pattern & forbidden_mask)
+    {
+      cout << " attemt to set reserved bit: " << bit << endl;
+      return 1;
+    }
+
+  return CAEN_DGTZ_WriteRegister(handle,CAEN_DGTZ_BROAD_CH_CONFIGBIT_SET_ADD, pattern);
+}
+
+int daq_device_CAENdrs_std::ClearConfigRegisterBit( const int bit)
+{
+  const unsigned int forbidden_mask = 0x0FFFE7B7;  // none of these bits must be touched
+  unsigned int pattern = 1<<bit;
+  if ( pattern & forbidden_mask)
+    {
+      cout << " attemt to set reserved bit: " << bit << endl;
+      return 1;
+    }
+
+  return CAEN_DGTZ_WriteRegister(handle,CAEN_DGTZ_BROAD_CH_CLEAR_CTRL_ADD, pattern);
+}
+
+int daq_device_CAENdrs_std::WriteRegisterBitmask(int32_t handle, uint32_t address, uint32_t data, uint32_t mask) {
+  int32_t ret = CAEN_DGTZ_Success;
+  uint32_t d32 = 0xFFFFFFFF;
+
+  ret = CAEN_DGTZ_ReadRegister(handle, address, &d32);
+  if(ret != CAEN_DGTZ_Success)
+    return ret;
+
+  data &= mask;
+  d32 &= ~mask;
+  d32 |= data;
+  ret = CAEN_DGTZ_WriteRegister(handle, address, d32);
+  return ret;
+}
+
+CAEN_DGTZ_DPP_PSD_Params_t daq_device_CAENdrs_std::getDPPParams(char* filename)
+{
+   CAEN_DGTZ_DPP_PSD_Params_t DPPParams;
+  FILE *infile;
+  infile=fopen(filename,"r");
+  char line[1000];
+  if (infile==NULL) perror("Error opening config file:");
+  int channel=-1;
+  while (fgets(line,1000,infile)!=NULL){
+    char ident[500];
+    char var[500];
+    sscanf(line,"%s %s",ident,var);
+    if (strcmp(ident,"DPPParams.purgap")==0) DPPParams.purgap=atoi(var);
+    if (strcmp(ident,"DPPParams.blthr")==0) DPPParams.blthr=atoi(var);
+    if (strcmp(ident,"DPPParams.bltmo")==0) DPPParams.bltmo=atoi(var);
+    if (strcmp(ident,"DPPParams.trgho")==0) DPPParams.trgho=atoi(var);
+    if (strcmp(ident,"DPPParams.purh")==0){
+      if (strcmp(var,"CAEN_DGTZ_DPP_PSD_PUR_DetectOnly")==0){
+    DPPParams.purh = CAEN_DGTZ_DPP_PSD_PUR_DetectOnly;
+      }else{
+    DPPParams.purh = CAEN_DGTZ_DPP_PSD_PUR_Enabled;
+      }
+    }
+
+    char abc[100];
+    //    char xyz[100];
+    if (line[0]=='['){
+      sscanf(line,"[ %s ]",abc);
+      //strncpy(xyz,abc,strlen(abc)-1);
+      channel=atoi(abc);
+    }
+    if (strcmp(ident,"DPPParams.thr[ch]")==0) DPPParams.thr[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.nsbl[ch]")==0) DPPParams.nsbl[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.lgate[ch]")==0) DPPParams.lgate[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.sgate[ch]")==0) DPPParams.sgate[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.pgate[ch]")==0) DPPParams.pgate[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.selft[ch]")==0) {
+      DPPParams.selft[channel]=atoi(var);
+    }
+    if (strcmp(ident,"DPPParams.tvaw[ch]")==0) DPPParams.tvaw[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.csens[ch]")==0) DPPParams.csens[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.trgc[ch]")==0){
+      if (strcmp(var,"CAEN_DGTZ_DPP_TriggerConfig_Threshold")==0){
+    DPPParams.trgc[channel] = CAEN_DGTZ_DPP_TriggerConfig_Threshold;
+      }else{
+    DPPParams.trgc[channel] = CAEN_DGTZ_DPP_TriggerConfig_Peak;
+      }
+    }
+  }
+  /*
+   int ch;
+        for(ch=0; ch<MaxNChannels; ch++) {
+            DPPParams.thr[ch] = 500;        // Trigger Threshold
+            DPPParams.nsbl[ch] = 2;
+            DPPParams.lgate[ch] = 32;    // Long Gate Width (N*4ns)
+            DPPParams.sgate[ch] = 24;    // Short Gate Width (N*4ns)
+            DPPParams.pgate[ch] = 8;     // Pre Gate Width (N*4ns)
+            DPPParams.selft[ch] = 1;
+            DPPParams.trgc[ch] = CAEN_DGTZ_DPP_TriggerConfig_Threshold;
+            DPPParams.tvaw[ch] = 50;
+            DPPParams.csens[ch] = 0;
+        }
+        DPPParams.purh = CAEN_DGTZ_DPP_PSD_PUR_DetectOnly;
+        DPPParams.purgap = 100;  // Purity Gap
+        DPPParams.blthr = 3;     // Baseline Threshold
+        DPPParams.bltmo = 100;   // Baseline Timeout
+        DPPParams.trgho = 8;     // Trigger HoldOff
+  */
+    return DPPParams;
+}
+DigitizerParams_t daq_device_CAENdrs_std::getDigitizerParams(char* filename)
+{
+  DigitizerParams_t Params;
+  uint32_t Mask=0x0;
+  FILE *infile;
+  infile=fopen(filename,"r");
+  char line[1000];
+  if (infile==NULL) perror("Error opening config file:");
+  int channel=-1;
+  while (fgets(line,1000,infile)!=NULL){
+    char ident[500];
+    char var[500];
+    sscanf(line,"%s %s",ident,var);
+    if (strcmp(ident,"SAVE_DIR")==0) strcpy(Params.saveDir,var);
+    if (strcmp(ident,"SAVE_NAME")==0) strcpy(Params.saveName,var);
+    if (strcmp(ident,"Params.LinkType")==0){
+      if (strcmp(var,"CAEN_DGTZ_OpticalLink")==0){
+    Params.LinkType = CAEN_DGTZ_OpticalLink;
+      }else{
+    Params.LinkType = CAEN_DGTZ_USB;
+      }
+    }
+    if (strcmp(ident,"Params.LinkNum")==0) Params.LinkNum=atoi(var);
+    if (strcmp(ident,"Params.BoardNum")==0) Params.BoardNum=atoi(var);
+    if (strcmp(ident,"Params.VMEBaseAddress")==0) Params.VMEBaseAddress=atoi(var);
+    if (strcmp(ident,"Params.IOlev")==0){
+      if (strcmp(var,"CAEN_DGTZ_IOLevel_TTL")==0){
+     Params.IOlev = CAEN_DGTZ_IOLevel_TTL;
+      }else{
+    Params.IOlev = CAEN_DGTZ_IOLevel_NIM;
+      }
+    }
+    if (strcmp(ident,"Params.AcqMode")==0){
+      if (strcmp(var,"CAEN_DGTZ_DPP_ACQ_MODE_Mixed")==0){
+    Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
+      }else if (strcmp(var,"CAEN_DGTZ_DPP_ACQ_MODE_List")==0){
+    Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;
+      }else{
+    Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope;
+      }
+    }
+    if (strcmp(ident,"Params.RecordLength")==0) Params.RecordLength=atoi(var);
+    if (strcmp(ident,"Params.EventAggr")==0) Params.EventAggr=atoi(var);
+    if (strcmp(ident,"Params.ExtTriggerInputMode")==0){
+      if (strcmp(var,"CAEN_DGTZ_TRGMODE_DISABLED")==0){
+    Params.ExtTriggerInputMode = CAEN_DGTZ_TRGMODE_DISABLED;
+      }else if (strcmp(var,"CAEN_DGTZ_TRGMODE_EXTOUT_ONLY")==0){
+    Params.ExtTriggerInputMode = CAEN_DGTZ_TRGMODE_EXTOUT_ONLY;
+      }else if (strcmp(var,"CAEN_DGTZ_TRGMODE_ACQ_ONLY")==0){
+    Params.ExtTriggerInputMode = CAEN_DGTZ_TRGMODE_ACQ_ONLY;
+      }else{
+    Params.ExtTriggerInputMode= CAEN_DGTZ_TRGMODE_ACQ_AND_EXTOUT;
+      }
+    }
+    char abc[100];
+    char xyz[100];
+    if (line[0]=='['){
+      sscanf(line,"[%s]",abc);
+      strncpy(xyz,abc,strlen(abc)-1);
+      channel=atoi(xyz);
+      //      printf("%d\n",channel);
+    }
+    if (strcmp(ident,"Params.ChannelEnabled[ch]")==0){
+      if (strcmp(var,"YES")==0){
+    Mask=Mask|(1<<channel);
+      }
+    }
+    if (strcmp(ident,"Params.PulsePolarity[ch]")==0){
+      if (strcmp(var,"CAEN_DGTZ_PulsePolarityNegative")==0){
+    Params.PulsePolarity[channel]= CAEN_DGTZ_PulsePolarityNegative;
+      }else{
+    Params.PulsePolarity[channel]= CAEN_DGTZ_PulsePolarityPositive;
+      }
+    }
+    if (strcmp(ident,"Params.PreTriggerSize[ch]")==0)  Params.PreTriggerSize[channel]=atoi(var);
+    if (strcmp(ident,"Params.DCOffset[ch]")==0){
+      Params.DCOffset[channel]= (int)((atof(var)+50) * 65535 / 100);
+    }
+  }
+
+  Params.ChannelMask = Mask;                               // Channel enable mask
+  return Params;
+}
+
+
+
+int daq_device_CAENdrs_std::ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PSD_Params_t DPPParams,char* filename)
+{
+
+  /* This function uses the CAENDigitizer API functions to perform the digitizer's initial configuration */
+  int i, ret = 0;
+
+  /* Reset the digitizer already reset at the constructor */
+  //ret |= CAEN_DGTZ_Reset(handle);
+
+  if (ret) {
+    printf("ERROR: can't reset the digitizer.\n");
+    return -1;
+  }
+
+  ret |= CAEN_DGTZ_SetDPPAcquisitionMode(handle, Params.AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
+
+
+  // configure interrupts and trigger
+   ret |= CAEN_DGTZ_SetInterruptConfig( handle, CAEN_DGTZ_ENABLE,
+                                             VME_INTERRUPT_LEVEL, VME_INTERRUPT_STATUS_ID,
+                                             1, INTERRUPT_MODE);
+
+  // Set the digitizer acquisition mode (CAEN_DGTZ_SW_CONTROLLED or CAEN_DGTZ_S_IN_CONTROLLED)
+  ret |= CAEN_DGTZ_SetAcquisitionMode(handle, CAEN_DGTZ_SW_CONTROLLED);
+
+  //Set Run syncroniztion mode
+  //ret |=CAEN_DGTZ_SetRunSynchronizationMode(handle,CAEN_DGTZ_RUN_SYNC_TrgOutTrgInDaisyChain);
+
+
+  // Set the I/O level (CAEN_DGTZ_IOLevel_NIM or CAEN_DGTZ_IOLevel_TTL)
+  ret |= CAEN_DGTZ_SetIOLevel(handle, Params.IOlev);
+
+  // Set the digitizer's behaviour when an external trigger arrives:
+
+  ret |= CAEN_DGTZ_SetExtTriggerInputMode(handle,Params.ExtTriggerInputMode);
+
+  // Set the enabled channels
+  ret |= CAEN_DGTZ_SetChannelEnableMask(handle, Params.ChannelMask);
+
+  // Set how many events to accumulate in the board memory before being available for readout
+  ret |= CAEN_DGTZ_SetDPPEventAggregation(handle, Params.EventAggr, 0);
+
+  /* Set the mode used to syncronize the acquisition between different boards.
+     In this example the sync is disabled */
+  ret |= CAEN_DGTZ_SetRunSynchronizationMode(handle, CAEN_DGTZ_RUN_SYNC_Disabled);
+
+  // Set the DPP specific parameters for the channels in the given channelMask
+  ret |= CAEN_DGTZ_SetDPPParameters(handle, Params.ChannelMask, &DPPParams);
+
+  // Set the number of samples for each waveform
+  ret |= CAEN_DGTZ_SetRecordLength(handle, Params.RecordLength);
+  //ret |= CAEN_DGTZ_SetRecordLength(handle, 3000,1);
+  //ret |= CAEN_DGTZ_SetDPPTriggerMode(handle,CAEN_DGTZ_DPP_TriggerMode_Coincidence);
+
+
+  for(i=0; i<MAX_N_CHANNEL; i++) {
+    if (Params.ChannelMask & (1<<i)) {
+      // Set a DC offset to the input signal to adapt it to digitizer's dynamic range
+      ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, Params.DCOffset[i]);
+      // Set the Pre-Trigger size (in samples)
+      ret |= CAEN_DGTZ_SetDPPPreTriggerSize(handle, i, Params.PreTriggerSize[i]);
+
+      // Set the polarity for the given channel
+      ret |= CAEN_DGTZ_SetChannelPulsePolarity(handle, i, Params.PulsePolarity[i]);
+    }
+
+  }
+  //Write Register
+  FILE *infile;
+  infile=fopen(filename,"r");
+  char line[1000];
+  uint32_t address,data,mask;
+  while (fgets(line,1000,infile)!=NULL){
+    char ident[500];
+    char var1[500];
+    char var2[500];
+    char var3[500];
+    sscanf(line,"%s %s %s %s",ident,var1,var2,var3);
+    if (strcmp(ident,"GENERIC_WRITE")==0){
+      char *p;
+      address=strtoul(var1, &p, 16);
+      data=strtoul(var2, &p, 16);
+      mask=strtoul(var3, &p, 16);
+      ret|=WriteRegisterBitmask(handle,address,data,mask);
+    }
+  }
+
+  if (ret) {
+    printf("Warning: errors found during the programming of the digitizer.\nSome settings may not be executed\n");
+    return ret;
+  } else {
+    return 0;
+  }
+}
+

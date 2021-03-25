@@ -199,10 +199,15 @@ Packet *oncsEvent::makePacket(PHDWORD *pp, const int hitFormat)
       return new 
 	oncsSub_iddrs4v1( sevt_ptr );
       break;
-	
+
+  // PHONG: Newly defined
   case (IDNODECODE):
       return new
               oncsSub_idnodecode( sevt_ptr );
+      break;
+  case (IDCAENV1730PHA):
+      return new
+              oncsSub_idcaenv1730pha( sevt_ptr );
       break;
 
     default:

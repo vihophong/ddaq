@@ -1,0 +1,1000 @@
+   17  cd ..
+   18  ls
+   19  cd cernroot/
+   20  ls
+   21  cd root_v6.18.00/
+   22  ls
+   23  cd lib/
+   24  ls
+   25  ls -lhtr
+   26  ls -lhtr libCling.so
+   27  ln -s  libCling.so.6.18 libCint.so
+   28  rm libCint.so
+   29  ls -lhtr
+   30  rootcint 
+   31  ls
+   32  gedit Makefile 
+   33  make clean
+   34  make
+   35  root -l
+   36  root
+   37  ls
+   38  ls -lhtr
+   39  make clean
+   40  cd ..
+   41  ls
+   42  cd ..
+   43  ls
+   44  cd rcdaq-rikensuite/
+   45  ls
+   46  cd install-rcdaq/
+   47  ls
+   48  cd ..
+   49  ls
+   50  cd build-rcdaq/
+   51  ls
+   52  cd online_distribution/
+   53  ls
+   54  cd newbasic/
+   55  ls
+   56  make clean
+   57  root5
+   58  ld
+   59  ls
+   60  rm *
+   61  ../../../rcdaq-rikensuite/online_distribution/newbasic/autogen.sh --prefix=$ONLINE_MAIN
+   62  make install
+   63  ls
+   64  cd ..
+   65  ls
+   66  cd pmonitor/
+   67  ls
+   68  make clean
+   69  ls
+   70  rm *
+   71  ../../../rcdaq-rikensuite/online_distribution/pmonitor/autogen.sh --prefix=$ONLINE_MAIN
+   72  make install
+   73  ls
+   74  cd ..
+   75  ls
+   76  cd ..
+   77  ls
+   78  cd ..
+   79  ls
+   80  cd ..
+   81  ls
+   82  cd brIKEN2019/
+   83  ls
+   84  cd online1/
+   85  ls
+   86  make clean
+   87  emacs -nw Makefile 
+   88  make
+   89  root -l
+   90  cd
+   91  ls
+   92  emacs -nw .bashrc
+   93  s -lhtr cernroot/
+   94  ls -lhtr cernroot/
+   95  ls -lhtr cernroot/root_v6.08.00/bin/thisroot.sh 
+   96  emacs -nw .bashrc
+   97  ls
+   98  cd  rcdaq-rikensuite/
+   99  ls
+  100  cd rcdaq-rikensuite/
+  101  ls
+  102  cd useranalysis/
+  103  ls
+  104  cd online1/
+  105  ls
+  106  make clean
+  107  ls
+  108  ls -lhtr
+  109  cd ..
+  110  ls
+  111  cd ..
+  112  ls
+  113  gedit INSTALL 
+  114  ls
+  115  cd qtcernrootcaen/
+  116  ls
+  117  gedit main.pro
+  118  touch main.cpp
+  119  ls
+  120  gedit main.cpp 
+  121  cd brIKEN2019/
+  122  ls
+  123  cd daqconfig/
+  124  ls
+  125  cd ..
+  126  ls
+  127  cd online1/
+  128  ls
+  129  make
+  130  make clean
+  131  make
+  132  root
+  133  ls
+  134  ssh -Y phong@mars
+  135  ls
+  136  cd rcdaq-rikensuite/
+  137  ls
+  138  rm -rf rcdaq-rikensuite.tar.gz 
+  139  ls
+  140  tar -zcvf rcdaq-rikensuite.tar.gz rcdaq-rikensuite
+  141  ls
+  142  cd
+  143  cd brIKEN2019/
+  144  ls
+  145  cd online1/
+  146  ls
+  147  root -l
+  148  ls
+  149  cd ..
+  150  ls
+  151  cd ..
+  152  ls
+  153  cd brIKEN2019/
+  154  ls
+  155  scp -r  phong@mars:/data02/2017data/NiGIRI_DAQ/brIKEN2017/online3 ,
+  156  ls
+  157  mv , online3
+  158  ls -lhtr
+  159  cd online
+  160  cd online3/
+  161  ls
+  162  make clean
+  163  ls -lhtr
+  164  make
+  165  ls
+  166  gedit pdecoder.h 
+  167  make clean
+  168  make
+  169  root -l
+  170  ls
+  171  cp oncsSubevent.cc oncsSubevent.cc_bak
+  172  cp oncsSubevent.h oncsSubevent.h_bak
+  173  ls
+  174  cp ~/NiGIRI_Computer/rcdaqnew-zeroSP/online_distribution/newbasic/oncsSubevent.cc .
+  175  cp ~/NiGIRI_Computer/rcdaqnew-zeroSP/online_distribution/newbasic/oncsSubevent.h .
+  176  ls
+  177  cd ..
+  178  ls
+  179  cd ..
+  180  ls
+  181  cd ..
+  182  ls
+  183  cd build-rcdaq/
+  184  ls
+  185  cd online_distribution/
+  186  ls
+  187  cd newbasic/
+  188  ls
+  189  make install
+  190  ls
+  191  cd ..
+  192  ls
+  193  cd ..
+  194  ls
+  195  cd online_distribution/
+  196  ls
+  197  cd newbasic/
+  198  ls
+  199  ls -ltr
+  200  ls -lhtr
+  201  ls
+  202  cd ..
+  203  ls
+  204  cd ..
+  205  ls
+  206  cd ..
+  207  ls
+  208  cd rcdaq-rikensuite/
+  209  ls
+  210  cd online_distribution/
+  211  ls
+  212  cd newbasic/
+  213  ls
+  214  ls -lhtr
+  215  ls -lhtr oncsSubevent.cc_bak oncsSubevent.cc
+  216  cp oncsSubevent.cc_bak oncsSubevent.cc
+  217  cp oncsSubevent.h_bak oncsSubevent.h
+  218  ls
+  219  cd ..
+  220  ls
+  221  cd ..
+  222  ls
+  223  cd ..
+  224  ls
+  225  cd build-rcdaq/
+  226  ls
+  227  cd online_distribution/
+  228  ls
+  229  cd newbasic/
+  230  ls
+  231  make install
+  232  ls
+  233  cd ..
+  234  ls
+  235  cd ..
+  236  ls
+  237  cd ..
+  238  ls
+  239  cd rcdaq-rikensuite/
+  240  ls
+  241  mv online_distribution ../online_distribution_newversionnotworking
+  242  ls
+  243  cp -r ~/NiGIRI_Computer/rcdaqnew-zeroSP/online_distribution .
+  244  ls
+  245  cd online_distribution/
+  246  ls
+  247  cd ..
+  248  ls
+  249  cd ..
+  250  ls
+  251  cd install-rcdaq/
+  252  ls
+  253  cd ..
+  254  ls
+  255  cd build-rcdaq/
+  256  ls
+  257  cd online_distribution/
+  258  ls
+  259  cd newbasic/
+  260  ls
+  261  pwd
+  262  make clean
+  263  ls
+  264  pwd
+  265  rm -rf *
+  266  ../../../rcdaq-rikensuite/online_distribution/newbasic/autogen.sh --prefix=$ONLINE_MAIN
+  267  make install
+  268  cd ../pmonitor/
+  269  ls
+  270  make clean
+  271  rm -rf *
+  272  ls
+  273  ../../../rcdaq-rikensuite/online_distribution/pmonitor/autogen.sh --prefix=$ONLINE_MAIN
+  274  make install
+  275  cd ../pmonitor/
+  276  ls
+  277  cd ../online1/
+  278  ls
+  279  make clean
+  280  make
+  281  cd
+  282  ls
+  283  cd rcdaq-rikensuite/
+  284  ;s
+  285  ls
+  286  mv bak
+  287  mkdir bak
+  288  mv bak temp
+  289  cd temp/
+  290  mv ../online_distribution_newversionnotworking .
+  291  ls
+  292  cd ..
+  293  ls
+  294  del rcdaq-rikensuite.tar.gz 
+  295  rm rcdaq-rikensuite.tar.gz 
+  296  tar -zcvf rcdaq-rikensuite.tar.gz rcdaq-rikensuite
+  297  ;s
+  298  ls
+  299  ls
+  300  cd ..
+  301  ls
+  302  cd
+  303  ls
+  304  cd rcdaq-rikensuite/
+  305  ls
+  306  cd rcdaq-rikensuite/
+  307  ls
+  308  cd online_distribution/
+  309  ls
+  310  cd newbasic/
+  311  ls
+  312  diff oncsSubevent.cc ~/NiGIRI_Computer/rcdaqnew-zeroSP/online_distribution/newbasic/oncsSubevent.cc 
+  313  cd ..
+  314  ls
+  315  cd online1/
+  316  ls
+  317  make
+  318  ls
+  319  root -l
+  320  l;s
+  321  ls
+  322  cd ..
+  323  ls
+  324  cd ..
+  325  ls
+  326  cd rcdaq-rikensuite/
+  327  ls
+  328  cd rcdaq-rikensuite/
+  329  ls
+  330  cd useranalysis/
+  331  ls
+  332  cp -r ~/brIKEN2019/online3 .
+  333  ls
+  334  cd online
+  335  cd online3
+  336  ls
+  337  make clean
+  338  ls
+  339  rm -rf *.root
+  340  ls -lhtr
+  341  ls
+  342  cd ..
+  343  ls
+  344  scp -r phong@mars:/data02/2017data/NiGIRI_DAQ/brIKEN2017/offline3 .
+  345  ls
+  346  cd offline3/
+  347  scp -r phong@mars:/data02/2017data/NiGIRI_DAQ/brIKEN2017/offline3/*.cc .
+  348  scp -r phong@mars:/data02/2017data/NiGIRI_DAQ/brIKEN2017/offline3/*.h .
+  349  ls
+  350  scp -r phong@mars:/data02/2017data/NiGIRI_DAQ/brIKEN2017/offline3/*.txt .
+  351  scp -r phong@mars:/data02/2017data/NiGIRI_DAQ/brIKEN2017/offline3/*.sh .
+  352  scp -r phong@mars:/data02/2017data/NiGIRI_DAQ/brIKEN2017/offline3/*.C .
+  353  scp -r phong@mars:/data02/2017data/NiGIRI_DAQ/brIKEN2017/offline3/Makefile .
+  354  ls
+  355  make clean
+  356  make
+  357  ls
+  358  ls -lhtr *.root
+  359  rm test.root 
+  360  ls
+  361  ls -lhtr
+  362  rm -rf beamdata
+  363  cd makecalibspec1/
+  364  ls
+  365  cd ..
+  366  ls
+  367  ls -lhtr
+  368  cd list/
+  369  ls
+  370  cd ..
+  371  ls
+  372  cd ..
+  373  ls
+  374  cd ..
+  375  ls
+  376  cd ..
+  377  ls
+  378  rm -rf rcdaq-rikensuite.tar.gz 
+  379  tar -zcvf rcdaq-rikensuite.tar.gz rcdaq-rikensuite
+  380  ls
+  381  ls -lhtr
+  382  cd
+  383  ls
+  384  cd brIKEN2019/
+  385  ls
+  386  cp -r ~/rcdaq-rikensuite/rcdaq-rikensuite/useranalysis/offline3 .
+  387  ls
+  388  cd offline3/
+  389  ls
+  390  ls -lhtr
+  391  ls
+  392  cd ..
+  393  ls
+  394  mkdir useranalysis
+  395  mv useranalysis/
+  396  ls
+  397  mv useranalysis usersanalysis
+  398  cd usersanalysis/
+  399  ls
+  400  mv ../offline3 .
+  401  mv ../online1 .
+  402  ls
+  403  cd
+  404  ls
+  405  cd rcdaq-rikensuite/
+  406  ls
+  407  cd rcdaq-rikensuite/
+  408  ls
+  409  gedit INSTALL 
+  410  cd ..
+  411  ls
+  412  rm -rf rcdaq-rikensuite.tar.gz 
+  413  tar -zxvf rcdaq-rikensuite.tar.gz rcdaq-rikensuite
+  414  tar -zcvf rcdaq-rikensuite.tar.gz rcdaq-rikensuite
+  415  ls
+  416  cp ~/cernroot/qtcmakerootexample/main.cpp .
+  417  ls
+  418  less main.cpp 
+  419  cp ~/cernroot/qtcmakerootexample/CMakeLists.txt .
+  420  ls
+  421  qtcreator
+  422  ls
+  423  cd 
+  424  ls
+  425  cd c
+  426  cd cernroot/
+  427  ls
+  428  ls -lhtr
+  429  cd qtcmakeroot
+  430  ls
+  431  cp ../../rcdaq-rikensuite/rcdaq-rikensuite/qtcernrootcaen/main.pro .
+  432  ls
+  433  git add --all
+  434  git commit -m "add main.pro that include ROOT and CAENlib and can be open by Qt"
+  435  git config --global user.email "hophongmc@gmail.com"
+  436  git config --global user.name "vihophong"
+  437  git commit -m "add main.pro that include ROOT and CAENlib and can be open by Qt"
+  438  git push origin master
+  439  ls
+  440  ls -lhtr
+  441  cd ..
+  442  ls
+  443  rm -r qtcmakerootexample
+  444  ls -lhtr
+  445  ls
+  446  cd ..
+  447  ls
+  448  cd rcdaq-rikensuite/
+  449  ls
+  450  cd rcdaq-rikensuite/
+  451  ls
+  452  cd
+  453  qtcreator
+  454  cd cen
+  455  qtcreator
+  456  cd brIKEN2019/
+  457  ls
+  458  cd daqconfig/
+  459  ls
+  460  rcdaq_server 
+  461  daq_status
+  462  daq_status -l
+  463  daq_end
+  464  daq_begin
+  465  daq_end
+  466  daq_status -l;
+  467  daq_status -l
+  468  daq_begin 
+  469  daq_end
+  470  daq_shutdown
+  471  ./daq_open1740.sh 
+  472  daq_begin
+  473  ls
+  474  daq_status -l
+  475  daq_end
+  476  daq_begin
+  477  watch daq_status -l
+  478  watch daq_status
+  479  daq_status 
+  480  watch rcdaq_client daq_status -l
+  481  daq_end
+  482  daq_shutdown 
+  483  ls
+  484  ./randomdevice.sh 
+  485  daq_begin
+  486  watch rcdaq_client daq_status -l
+  487  ls
+  488  daq_shutdown 
+  489  ./daq_open1740.sh 
+  490  daq_begin
+  491  watch rcdaq_client daq_status -l
+  492  daq_end
+  493  daq_begin
+  494  daq_end
+  495  watch rcdaq_client daq_status -l
+  496  cd
+  497  ls
+  498  cd brIKEN2019/
+  499  ls
+  500  cd online
+  501  ls
+  502  cd online3
+  503  root -lk
+  504  '
+  505  '
+  506  ls
+  507  make clean
+  508  make
+  509  ls
+  510  root -l
+  511  ls -lhtr
+  512  root -l outhist.root 
+  513  ls
+  514  ls -lhtr
+  515  root -l
+  516  cd ..
+  517  ls
+  518  mv online3 usersanalysis/
+  519  ls
+  520  cd usersanalysis/
+  521  ls
+  522  cd online3/
+  523  ls
+  524  make clean
+  525  make
+  526  cd ..
+  527  ls
+  528  cd online1/
+  529  ls
+  530  make clean
+  531  make
+  532  ls
+  533  cd ..
+  534  ls
+  535  cd offline3/
+  536  ls
+  537  make clean
+  538  make
+  539  ls
+  540  cd ..
+  541  ls
+  542  scp -r  phong@mars:/data02/2017data/NiGIRI_DAQ/brIKEN2017/ribfts .
+  543  ls
+  544  scp -r  phong@mars:/data02/2017data/NiGIRI_DAQ/brIKEN2017/online2_dgtzsynccheck .
+  545  ls
+  546  cd online3/
+  547  ls
+  548  root -l
+  549  cd ..
+  550  ls
+  551  cd online2_dgtzsynccheck/
+  552  ls
+  553  make clean
+  554  make
+  555  cd ..
+  556  ls
+  557  cd ribfts/
+  558  ls
+  559  ls -lhtr
+  560  cd DataPeek/
+  561  ls
+  562  cd ..
+  563  ls
+  564  cd rcdaqsender/
+  565  ls
+  566  make clean
+  567  ls
+  568  make
+  569  ls
+  570  less transfer.c
+  571  ls
+  572  ls -lhtr
+  573  cd ..
+  574  ls
+  575  ls -lhtr
+  576  cd ribftssender/
+  577  ls
+  578  make
+  579  cd ..
+  580  ls
+  581  cd MIDAS/
+  582  ls
+  583  cd Linux/
+  584  ls
+  585  cd lib64/
+  586  ls
+  587  cd ..
+  588  ls
+  589  cd ..
+  590  ls
+  591  cd ..
+  592  ls
+  593  cd rcdaqsender/
+  594  ls
+  595  cd ..
+  596  ls
+  597  ls -lhtr
+  598  cd DataXferLib/
+  599  ls
+  600  cd V4_TCP/
+  601  ls
+  602  make
+  603  ls
+  604  cd Linux64/
+  605  ls
+  606  make
+  607  make clean
+  608  make
+  609  ls
+  610  cd ..
+  611  ls
+  612  cd ..
+  613  ls
+  614  cd ..
+  615  ls
+  616  cd DataS
+  617  cd DataStorage/
+  618  ls
+  619  cd ..
+  620  ls
+  621  cd DataSpyLib/
+  622  ls
+  623  cd Linux64/
+  624  ls
+  625  make clean
+  626  make
+  627  cd ..
+  628  ls
+  629  cd ..
+  630  ls
+  631  cd DataSink/
+  632  ls
+  633  cd Linux64/
+  634  ls
+  635  make clean
+  636  make
+  637  cd ..
+  638  ls
+  639  cd ..
+  640  ls
+  641  cd DataRelay/
+  642  ls
+  643  cd Linux64/
+  644  ls
+  645  make clean
+  646  make
+  647  cd ..
+  648  ls
+  649  cd ..
+  650  ls
+  651  cd DataXferLib/
+  652  ls
+  653  cd V4_TCP/
+  654  ls
+  655  cd Linux64/
+  656  ls
+  657  sudo make install
+  658  ls
+  659  cd ..
+  660  ls
+  661  cd ..
+  662  ls
+  663  cd ..
+  664  ls
+  665  cd ls -lhtr
+  666  ls
+  667  cd rcdaqsender/
+  668  ls
+  669  make
+  670  make clean
+  671  make
+  672  less transfer.c
+  673  ls -lhtr
+  674  cd ..
+  675  ls
+  676  cd ribftssender/
+  677  ls
+  678  make
+  679  ls
+  680  cd ..
+  681  ls
+  682  cd rcdaqsender/
+  683  ls
+  684  emacs -nw Makefile
+  685  ls
+  686  cd ..
+  687  ls
+  688  cd DataStorage/
+  689  ls
+  690  cd ..
+  691  ls
+  692  cd rcdaqsender/
+  693  ls
+  694  gedit Makefile
+  695  ls
+  696  gedit ~/.bashrc
+  697  ls
+  698  gedit Makefile
+  699  ls
+  700  pwd
+  701  gedit Makefile
+  702  ls
+  703  make clean
+  704  make
+  705  ls
+  706  cd ..
+  707  ls
+  708  cd ..
+  709  ls
+  710  ls -lhtr
+  711  cd online
+  712  ls
+  713  cd online3
+  714  ls
+  715  root -l
+  716  ls
+  717  cd
+  718  ls
+  719  cd -
+  720  ls
+  721  root -l
+  722  ./daq_openlupo.sh 
+  723  cd ..
+  724  ls
+  725  cd ..
+  726  ls
+  727  cd rcdaq-rikensuite/
+  728  ls
+  729  scp -r phong@mars:/data02/2017data/NiGIRI_DAQ/pDAQ/lupoReadout .
+  730  ls
+  731  ls -lhtr
+  732  mkdir build-lupoReadout
+  733  ls
+  734  cd build-lupoReadout/
+  735  ls
+  736  pwd
+  737  LS
+  738  CD
+  739  LS
+  740  ls
+  741  ssh -Y phong@mars
+  742  cd ..
+  743  ls
+  744  cd ..
+  745  ls
+  746  cd rcdaq-rikensuite/
+  747  ls
+  748  cd ..
+  749  ls
+  750  cd brIKEN2019/
+  751  ls
+  752  cd daqconfig/
+  753  ls
+  754  cd ..
+  755  ls
+  756  cd -
+  757  ls
+  758  cd
+  759  ls
+  760  cd NiGIRI_Computer/
+  761  ls
+  762  cd rcdaqnew-zeroSP/
+  763  ls
+  764  cd ..
+  765  ls
+  766  cd daqconfig/
+  767  ls
+  768  less ..
+  769  ls
+  770  cd ..
+  771  ls
+  772  cd rcdaqnew-zeroSP/
+  773  ls
+  774  cd install/
+  775  ls
+  776  cd bin
+  777  ls
+  778  less daq_open1740.sh
+  779  less resettimestamp_briken.sh
+  780  ls -lhtr
+  781  which lupo
+  782  ls -lhtr
+  783  ls *.c
+  784  ls
+  785  ls -lhtr
+  786  cd briken2017/
+  787  ls
+  788  cd ..
+  789  ls
+  790  ls -lhtr
+  791  less daq_open1740.sh
+  792  less resettimestamp_briken.sh
+  793  lupo 3 0 111000 2
+  794  lupo 3 0 111000 1
+  795  lupo 3 0 111000 2
+  796  CAENUpgraderGUI 
+  797  lupo 0 3 111000 2
+  798  lupo 3 0 111000 2
+  799  CAENUpgraderGUI `
+  800  CAENUpgraderGUI 
+  801  CAENUpgraderGUI \
+  802  CAENUpgraderGUI 
+  803  cd
+  804  ls
+  805  les /tmp/CAENUpgrader_log.txt 
+  806  less /tmp/CAENUpgrader_log.txt 
+  807  ls
+  808  ls -lhtr
+  809  cd CAENConfig/
+  810  ls
+  811  cd drivers/
+  812  ls
+  813  cd ../firmwares/
+  814  ls
+  815  ls -lhtr
+  816  cp -r ../CAEN_64_asof2018/V2718_Conet2 
+  817  cp -r ../CAEN_64_asof2018/V2718_Conet2 .
+  818  ls
+  819  ls -lhtr V2718_Conet2
+  820  ls -lhtr V2718_Conet2_rev2.17_1.5/
+  821  mv V2718_Conet2 V2718_Conet2_rev2.14_1.5
+  822  ls
+  823  ls -lhtr
+  824  less /tmp/CAENUpgrader_log.txt 
+  825  cd
+  826  ls
+  827  cd Downloads/
+  828  ls
+  829  ls -lhtr
+  830  less /tmp/CAENUpgrader_log.txt 
+  831  CAENUpgraderGUI 
+  832  ls
+  833  emacs -nw loadcaensingle.sh 
+  834  ls
+  835  cd
+  836  ls
+  837  cd brIKEN2019/
+  838  ls
+  839  cd daqconfig/
+  840  ls
+  841  cp daq_open1740.sh daq_openlupo.sh 
+  842  gedit daq_openlupo.sh 
+  843  ls
+  844  rcdaq_server 
+  845  ls
+  846  cd ..
+  847  ls
+  848  cd ..
+  849  ls
+  850  cd rcdaq-rikensuite/
+  851  ls
+  852  mkdir old
+  853  ls
+  854  cd old/
+  855  ls
+  856  cp -r ~/NiGIRI_Computer/rcdaqnew-zeroSP/rcdaq .
+  857  ls
+  858  mkdir build
+  859  ls
+  860  cd build/
+  861  ls
+  862  mkdir install
+  863  ls
+  864  cd ..
+  865  ls
+  866  mkdir install
+  867  cd build/
+  868  ls
+  869  rm -rf install
+  870  ls
+  871  cd ..
+  872  ls
+  873  cd rcdaq/
+  874  ls
+  875  cp -r ~/NiGIRI_Computer/rcdaqnew-zeroSP/CAENdrs .
+  876  ls
+  877  cd ..
+  878  ls
+  879  cd build/
+  880  ls
+  881  mkdir caen
+  882  mkdir rcdaq
+  883  cd rcdaq/
+  884  ls
+  885  pwd
+  886  ls
+  887  source ~/.bashrc
+  888  ls
+  889  gedit daq_open1740.sh 
+  890  ls
+  891  cd ..
+  892  ls
+  893  cd ..
+  894  ls
+  895  cd rcdaq/
+  896  ls
+  897  mv CAENdrs ../
+  898  ls
+  899  cd
+  900  ls
+  901  cd bri
+  902  cd brIKEN2019/
+  903  ls
+  904  cd daqconfig/
+  905  ls
+  906  rcdaq_server 
+  907  echo $ONLINE_MAIN
+  908  gedit ~/.bashrc
+  909  ls
+  910  ./daq_open1740.sh 
+  911  daq_status -l
+  912  daq_begin
+  913  watch daq_client daq_status -l
+  914  watch rcdaq_client daq_status -l
+  915  daq_end
+  916  daq_shutdown
+  917  CAENUpgraderGUI 
+  918  ls
+  919  ./daq_openlupo.sh 
+  920  ./daq_open1740.sh 
+  921  less daq_open1740.sh 
+  922  ls
+  923  daq_begin
+  924  daq_status ll
+  925  daq_status -l
+  926  daq_end
+  927  ls
+  928  daq_end
+  929  daq_shutdown
+  930  daq_status -l
+  931  daq_status ll
+  932  gedit daq_open1740.sh 
+  933  ./daq_open1740.sh 
+  934  daq_begin
+  935  daq_status -l
+  936  daq_end
+  937  ./daq_open1740.sh 
+  938  daq_begin
+  939  daq_status -l
+  940  daq_end
+  941  ./daq_open1740.sh 
+  942  daq_begin
+  943  daq_status -l
+  944  daq_begin
+  945  daq_end
+  946  daq_begin
+  947  daq_status -l
+  948  watch rcdaq_client daq_status -l
+  949  daq_end
+  950  daq_shutdown
+  951  less ~/.bashrc
+  952  emacs -nw ~/.bashrc
+  953  gedit ~/.bashrc
+  954  pwd
+  955  ls
+  956  ls ls
+  957  ls
+  958  ../../rcdaq/autogen.sh --prefix=$ONLINE_MAIN
+  959  make install
+  960  cd ../caen/
+  961  ls
+  962  ../../CAENdrs/autogen.sh --prefix=$ONLINE_MAIN
+  963  make install
+  964  ls
+  965  cd ..
+  966  ls
+  967  cd usersanalysis/
+  968  ls
+  969  cd online3/
+  970  ls
+  971  root -l
+  972  ls
+  973  root -l
+  974  ls
+  975  ssh -Y phong@mars
+  976  cd ..
+  977  ls
+  978  cd rcdaq/
+  979  ls
+  980  make install
+  981  ls
+  982  cd ..
+  983  ls
+  984  cd ..
+  985  ls
+  986  cd ..
+  987  ls
+  988  cd rcdaq-rikensuite/
+  989  ls
+  990  cd build-rcdaq/
+  991  ls
+  992  cd CAENdrs/
+  993  ls
+  994  make install
+  995  gedit m1740_0.txt
+  996  CAENUpgraderGUI 
+  997  less /tmp/CAENUpgrader_log.txt 
+  998  rcdaq_server 
+  999  CAENUpgraderGUI 
+ 1000  rcdaq_server 
+ 1001  ls
+ 1002  cd brIKEN2019/
+ 1003  ls
+ 1004  cd daqconfig/
+ 1005  ls
+ 1006  rcdaq_server 
+ 1007  pwd
+ 1008  history 
+ 1009  rcdaq_server 
+ 1010  ls
+ 1011  rcdaq_server 
+ 1012  LS
+ 1013  ls
+ 1014  rcdaq_server 
+ 1015  pwd
+ 1016  history >& daqhistory04.txt 

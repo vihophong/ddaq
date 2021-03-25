@@ -1220,18 +1220,19 @@ void * daq_triggerloop (void * arg)
 	      
 	    }
 
-	}
+    }
       else
-      	{
+        {
       Trigger_Todo=DAQ_READ;
-	  CurrentEventType = 1;
-	  pthread_mutex_unlock ( &TriggerSem );
+      CurrentEventType = 1;
+      pthread_mutex_unlock ( &TriggerSem );
 
-	  pthread_mutex_lock ( &TriggerDone );
+      pthread_mutex_lock ( &TriggerDone );
 
-      usleep (100000);
+      //! Phong modified (if no trigger, continuouly read)
+      //usleep (100000);
       //usleep (1000000);
-      	}
+        }
     }
    pthread_mutex_lock(&M_cout);
    cout << "trigger loop ended for run " << TheRun<< endl;
@@ -1251,9 +1252,9 @@ int daq_fake_trigger (const int n, const int waitinterval)
       pthread_mutex_unlock ( &TriggerSem );
       pthread_mutex_lock ( &TriggerDone );
 	  
-//       pthread_mutex_lock(&M_cout);
-//       cout << "trigger" << endl;
-//       pthread_mutex_unlock(&M_cout);
+       pthread_mutex_lock(&M_cout);
+       cout << "trigger" << endl;
+       pthread_mutex_unlock(&M_cout);
 
       usleep (200000);
 
@@ -1286,7 +1287,7 @@ void * EventLoop( void *arg)
               Trigger_Todo = 0;
 
               reset_deadtime();
-              if (  rstatus)    // we got an endrun signal
+              if (  rstatus == 1 )    // we got an endrun signal
               {
                   daq_end ( std::cout);
                   //go_on = 0;
@@ -1304,10 +1305,10 @@ void * EventLoop( void *arg)
       else
 	// no, we are not running
 	{
-	  cout << "Run not active" << endl;
+      cout << "Run not active" << endl;
 	  // reset todo, and the DAQ_TRIGGER bit. 
 	  Trigger_Todo = 0;
-	  reset_deadtime();
+      reset_deadtime();
 	}
     }
   

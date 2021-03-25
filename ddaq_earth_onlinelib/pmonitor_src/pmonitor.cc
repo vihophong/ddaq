@@ -377,30 +377,30 @@ int pstop()
   return 0;
 }
 
-//-----------------------------------------
+////-----------------------------------------
 
-int pclose()
-{
+//int pclose()
+//{
 
-  if (! theState.streamOpened() )
-    {
-      cout << "No input Stream open" << endl;
-      return 1;
-    }
+//  if (! theState.streamOpened() )
+//    {
+//      cout << "No input Stream open" << endl;
+//      return 1;
+//    }
 
-  if ( theState.isRunning() )
-    {
-      cout << "Still running, stop first" << endl;
-      return 1;
-    }
-  delete theIterator;
-  theIterator = 0;
-  theState.clearOpened();
-  //if (theGui)
-  //  theGui->setStreamLabel("No stream open");
+//  if ( theState.isRunning() )
+//    {
+//      cout << "Still running, stop first" << endl;
+//      return 1;
+//    }
+//  delete theIterator;
+//  theIterator = 0;
+//  theState.clearOpened();
+//  //if (theGui)
+//  //  theGui->setStreamLabel("No stream open");
 
-  return 0;
-}
+//  return 0;
+//}
 
 int mylock = 0;
 int plock()

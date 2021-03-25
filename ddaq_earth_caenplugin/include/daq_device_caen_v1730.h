@@ -54,6 +54,8 @@ public:
 
     int _trigger;
     int _trigger_handler;
+    int _boardnumber;
+
     int _linknumber;
     CAEN_DGTZ_DRS4Frequency_t _speed;
     int _delay;

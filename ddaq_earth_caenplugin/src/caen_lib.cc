@@ -21,7 +21,7 @@ using namespace std;
 
 
 int init_nbbqvio(int* ret, short Link, short Device){
-  CVBoardTypes VMEBoard = cvV1718;
+  CVBoardTypes VMEBoard = cvV2718;
   int BHandle;
   if( CAENVME_Init(VMEBoard, Link, Device, &BHandle) != cvSuccess )
   {

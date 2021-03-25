@@ -7,4 +7,6 @@
 #include "oncsSub_idcaenv1742.h"
 #include "oncsSub_iddrs4v1.h"
 #include "oncsSub_iddigitizerv1.h"
+// PHONG: Newly defined
 #include "oncsSub_idnodecode.h"
+#include "oncsSub_idcaenv1730pha.h"

@@ -63,6 +63,7 @@ daq_device_caen_v1730_dpppha::daq_device_caen_v1730_dpppha(const int eventtype
     m_eventType  = eventtype;
     m_subeventid = subeventid;
 
+    _broken = 0;
 
     handle = 0;
 
@@ -82,8 +83,15 @@ daq_device_caen_v1730_dpppha::daq_device_caen_v1730_dpppha(const int eventtype
     /* Read Parameters                                       */
     /* *************************************************************************************** */
 
-    DigitizerParams_t dgtzparms=getDigitizerParams("DPPConfig.txt");
-    CAEN_DGTZ_DPP_PHA_Params_t dppparms=getDPPPHAParams("DPPConfig.txt");
+    _boardnumber = boardid;
+    sprintf(ConfigFileName,"v1730Config_m%i.txt",_boardnumber);
+    printf("Opening Configuration File %s\n", ConfigFileName);
+
+    DigitizerParams_t dgtzparms=getDigitizerParams(ConfigFileName);
+    CAEN_DGTZ_DPP_PHA_Params_t dppparms=getDPPPHAParams(ConfigFileName);
+
+    //DigitizerParams_t dgtzparms=getDigitizerParams((char*)"DPPConfig.txt");
+    //CAEN_DGTZ_DPP_PHA_Params_t dppparms=getDPPPHAParams((char*)"DPPConfig.txt");
     //cout<<"Trapezoid Rise Time (ns): "<<dppparms.k[0]<<endl;
 
     /* *************************************************************************************** */
@@ -113,11 +121,11 @@ daq_device_caen_v1730_dpppha::daq_device_caen_v1730_dpppha(const int eventtype
       printf("This digitizer has not a DPP-PSD/PHA firmware\n");
     }
 
-    //! write down handle file
-    std::ofstream handlefileout("handle",std::ofstream::out);
-    handlefileout<<handle;
-    handlefileout.close();
-    printf("Write handle file with val = %d\n", handle);
+//    //! write down handle file
+//    std::ofstream handlefileout("handle",std::ofstream::out);
+//    handlefileout<<handle;
+//    handlefileout.close();
+//    printf("Write handle file with val = %d\n", handle);
 
     //Check for possible board internal errors
     ret = CheckBoardFailureStatus2(handle, BoardInfo);
@@ -169,6 +177,8 @@ daq_device_caen_v1730_dpppha::daq_device_caen_v1730_dpppha(const int eventtype
       {
         _th = 0;
       }
+
+    CAEN_DGTZ_SWStartAcquisition(handle);
 }
 
 
@@ -188,8 +198,9 @@ daq_device_caen_v1730_dpppha::~daq_device_caen_v1730_dpppha()
 
 int  daq_device_caen_v1730_dpppha::init()
 {
-    CAEN_DGTZ_SWStartAcquisition(handle);
-    receivedTrigger=0;
+    //CAEN_DGTZ_SWStartAcquisition(handle);
+    receivedTrigger = 0;
+    n_datareaderror = 0;
     return 0;
 }
 
@@ -198,21 +209,23 @@ int  daq_device_caen_v1730_dpppha::init()
 int daq_device_caen_v1730_dpppha::put_data(const int etype, int * adr, const int length )
 {
     //cout<<"put data"<<endl;
-    if ( _broken )
-    {
-        //      cout << __LINE__ << "  " << __FILE__ << " broken ";
-        //      identify();
-        return 0; //  we had a catastrophic failure
-    }
+//    if ( _broken )
+//    {
+//        //      cout << __LINE__ << "  " << __FILE__ << " broken ";
+//        //      identify();
+//        cout << __LINE__ << "  " << __FILE__ << " _broken " << _boardnumber <<endl;
+//        return 0; //  we had a catastrophic failure
+//    }
 
     if (etype != m_eventType )  // not our id
     {
+        cout << __LINE__ << "  " << __FILE__ << " m_eventType " << _boardnumber <<endl;
         return 0;
     }
 
     if ( length < max_length(etype) )
     {
-        //      cout << __LINE__ << "  " << __FILE__ << " length " << length <<endl;
+        cout << __LINE__ << "  " << __FILE__ << " length " << length <<endl;
         return 0;
     }
 
@@ -227,14 +240,17 @@ int daq_device_caen_v1730_dpppha::put_data(const int etype, int * adr, const int
     sevt->sub_id =  m_subeventid;
     sevt->sub_type=4;
     sevt->sub_decoding = 105;
-    sevt->reserved[0] = 0;
+    sevt->reserved[0] = _boardnumber;
     sevt->reserved[1] = 0;
 
     /* Read data from the board */
     ret = CAEN_DGTZ_ReadData(handle, CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, (char *) &sevt->data, &BufferSize);
     if (ret) {
-        cout<<"CAEN_DGTZ_ReadData Error!"<<endl;
-        exit(0);
+        if (n_datareaderror<10||n_datareaderror%1000==0)
+            cout<<"CAEN_DGTZ_ReadData Error! "<<n_datareaderror<<endl;
+        n_datareaderror++;
+        return 0;
+        //exit(0);
     }
     if (BufferSize==0){
         uint32_t lstatus;
@@ -267,7 +283,7 @@ int daq_device_caen_v1730_dpppha::put_data(const int etype, int * adr, const int
         if (Nb == 0)
             printf("No data...\n");
         else
-            printf("Reading at %.5f MB/s \n", ReadoutRate);
+            printf("Reading board %d at %.5f MB/s \n", _boardnumber, ReadoutRate);
 
         nCycles= 0;
         Nb = 0;
@@ -284,18 +300,20 @@ int daq_device_caen_v1730_dpppha::put_data(const int etype, int * adr, const int
 
     sevt->sub_padding = BufferSize/4;//actual number of words;
 
+    //cout<<_boardnumber<<"\t"<<CurrentTime<<endl;
     return  sevt->sub_length;
+
 }
 
 
 int daq_device_caen_v1730_dpppha::endrun()
 {
-    CAEN_DGTZ_SWStopAcquisition(handle);
-    CAEN_DGTZ_ClearData(handle);
-    if ( _broken )
-      {
-        return 0; //  we had a catastrophic failure
-      }
+//    CAEN_DGTZ_SWStopAcquisition(handle);
+//    CAEN_DGTZ_ClearData(handle);
+//    if ( _broken )
+//      {
+//        return 0; //  we had a catastrophic failure
+//      }
     return _broken;
 }
 

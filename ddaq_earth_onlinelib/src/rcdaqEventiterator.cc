@@ -109,6 +109,12 @@ int rcdaqEventiterator::setup(const char *ip, int &status)
       sprintf(tmpcmd,"tcp://%s:%d",ip,MONITORINGPORT);
   }
   std::cout<<"ZMQ connected "<<tmpcmd<<std::endl;
+
+//  int hmw =2;
+//  online->setsockopt(ZMQ_RCVHWM,&hmw, sizeof(hmw));
+//  int bufsize = hmw*1024;
+//  online->setsockopt(ZMQ_RCVBUF,&bufsize, sizeof(bufsize));
+
   online->connect(tmpcmd);
   online->set(zmq::sockopt::subscribe, "");//subcribe all
 

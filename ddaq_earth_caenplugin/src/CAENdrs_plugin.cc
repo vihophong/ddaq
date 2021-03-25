@@ -6,7 +6,9 @@
 #include <daq_device_caentdc.h>
 #include <daq_device_caen_v1730.h>
 #include <daq_device_caen_v1730_dpppha.h>
-
+#include <daq_device_caen_v1740raw.h>
+#include <daq_device_caen_v1740zsp.h>
+#include <daq_device_lupo.h>
 
 #include <sstream>
 #include <string>
@@ -132,6 +134,37 @@ int CAENdrs_plugin::create_device(deviceblock *db)
           return 0;  // say "we handled this request"
         }
     }
+  else if ( strcasecmp(db->argv0,"device_lupo") == 0 )
+    {
+      // we need at least 5 params
+      if ( db->npar <6 ) return 1; // indicate wrong params
+
+      eventtype  = get_value ( db->argv1); // event type
+      subid = get_value ( db->argv2); // subevent id
+      int linknumber = get_value ( db->argv3);
+      int boardnumber = get_value ( db->argv4);
+      int address = get_value_hex ( db->argv5);
+      if ( db->npar == 6)
+        {
+          add_readoutdevice ( new daq_device_lupo( eventtype,
+                                                          subid,
+                                                          linknumber,
+                                                          boardnumber,
+                                                          address ));
+          return 0;  // say "we handled this request"
+        }
+      else if ( db->npar == 7)
+        {
+          int trigger = get_value ( db->argv6);
+          add_readoutdevice ( new daq_device_lupo( eventtype,
+                                                          subid,
+                                                          linknumber,
+                                                          boardnumber,
+                                                          address,
+                                                          trigger ));
+          return 0;  // say "we handled this request"
+        }
+    }
   else if ( strcasecmp(db->argv0,"device_caen_v1730") == 0 )
     {
       // we need at least 5 params
@@ -153,6 +186,64 @@ int CAENdrs_plugin::create_device(deviceblock *db)
         {
           int trigger = get_value ( db->argv5);
           add_readoutdevice ( new daq_device_caen_v1730( eventtype,
+                                                          subid,
+                                                          isdppmode,
+                                                          boardid,
+                                                          trigger ));
+          return 0;  // say "we handled this request"
+        }
+
+    }
+  else if ( strcasecmp(db->argv0,"device_caen_v1740raw") == 0 )
+    {
+      // we need at least 5 params
+      if ( db->npar <5 ) return 1; // indicate wrong params
+
+      eventtype  = get_value ( db->argv1); // event type
+      subid = get_value ( db->argv2); // subevent id
+      int isdppmode = get_value ( db->argv3);
+      int boardid = get_value ( db->argv4);
+
+      if ( db->npar == 5)
+        {
+          add_readoutdevice ( new daq_device_caen_v1740raw( eventtype,
+                                                          subid,
+                                                          isdppmode,
+                                                          boardid ));
+          return 0;  // say "we handled this request"
+      }else if ( db->npar == 6)
+        {
+          int trigger = get_value ( db->argv5);
+          add_readoutdevice ( new daq_device_caen_v1740raw( eventtype,
+                                                          subid,
+                                                          isdppmode,
+                                                          boardid,
+                                                          trigger ));
+          return 0;  // say "we handled this request"
+        }
+
+    }
+  else if ( strcasecmp(db->argv0,"device_caen_v1740zsp") == 0 )
+    {
+      // we need at least 5 params
+      if ( db->npar <5 ) return 1; // indicate wrong params
+
+      eventtype  = get_value ( db->argv1); // event type
+      subid = get_value ( db->argv2); // subevent id
+      int isdppmode = get_value ( db->argv3);
+      int boardid = get_value ( db->argv4);
+
+      if ( db->npar == 5)
+        {
+          add_readoutdevice ( new daq_device_caen_v1740zsp( eventtype,
+                                                          subid,
+                                                          isdppmode,
+                                                          boardid ));
+          return 0;  // say "we handled this request"
+      }else if ( db->npar == 6)
+        {
+          int trigger = get_value ( db->argv5);
+          add_readoutdevice ( new daq_device_caen_v1740zsp( eventtype,
                                                           subid,
                                                           isdppmode,
                                                           boardid,

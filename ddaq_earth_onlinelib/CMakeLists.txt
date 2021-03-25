@@ -12,6 +12,15 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 project(newbasic)
 
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+
+find_package(Boost 1.45.0)
+if(Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+endif()
+
 # You need to tell CMake where to find the ROOT installation. This can be done in a number of ways:
 #   - ROOT built with classic configure/make use the provided $ROOTSYS/etc/cmake/FindROOT.cmake
 #   - ROOT built with CMake. Add in CMAKE_PREFIX_PATH the installation prefix for ROOT
@@ -39,6 +48,10 @@ add_definitions(-DRDBUF_ACCEPTS_STREAMBUF=1 -DHAVE_STRPTIME_PROTOTYPE=1 -DHAVE_G
 #include source and include dir
 include_directories(${PROJECT_SOURCE_DIR}/include/Event)
 include_directories(${PROJECT_SOURCE_DIR}/include)
+if (CZMQ_INCLUDE_DIR)
+    include_directories(${CZMQ_INCLUDE_DIR})
+    message(STATUS "Included directory: ${CZMQ_INCLUDE_DIR} for ZMQ and CPPZMQ")
+endif()
 
 
 file(GLOB sources ${PROJECT_SOURCE_DIR}/src/*.cc)
@@ -94,7 +107,7 @@ target_link_libraries(Rootmessage message)
 #---Create a shared library
 add_library(NoRootEvent SHARED ${headers} ${sources} ${sources_C})
 target_link_libraries(NoRootEvent message)
-target_link_libraries(NoRootEvent z)
+#target_link_libraries(NoRootEvent z)
 #target_link_libraries(NoRootEvent lzo2)#lzo
 target_link_libraries(NoRootEvent cppzmq)
 
@@ -113,7 +126,7 @@ add_library(Event SHARED ${Rootmessage_headers} ${Rootmessage_sources} G__event_
 target_link_libraries(Event NoRootEvent)
 target_link_libraries(Event Rootmessage)
 target_link_libraries(Event ${ROOT_LIBRARIES})
-target_link_libraries(Event z)
+#target_link_libraries(Event z)
 #target_link_libraries(Event lzo2)
 
 
@@ -138,15 +151,18 @@ add_executable(dlist
     dlist.cc)
 target_link_libraries(dlist NoRootEvent)
 target_link_libraries(dlist dl)
-target_link_libraries(dlist z)
+#target_link_libraries(dlist z)
 #target_link_libraries(dlist lzo2)
+if(Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+    add_executable(ddump
+        ddump.cc)
+    target_link_libraries(ddump NoRootEvent)
+    target_link_libraries(ddump dl)
+    #target_link_libraries(ddump z)
+    #target_link_libraries(ddump lzo2)
+endif()
 
-add_executable(ddump
-    ddump.cc)
-target_link_libraries(ddump NoRootEvent)
-target_link_libraries(ddump dl)
-target_link_libraries(ddump z)
-#target_link_libraries(ddump lzo2)
 
 
 #----------------------------------------------------------------------------
@@ -242,5 +258,7 @@ install (FILES ${PROJECT_BINARY_DIR}/libpmonitor_rdict.pcm DESTINATION lib)
 
 #binary installation
 install(TARGETS dlist DESTINATION bin)
-install(TARGETS ddump DESTINATION bin)
+if(Boost_FOUND)
+    install(TARGETS ddump DESTINATION bin)
+endif()
 

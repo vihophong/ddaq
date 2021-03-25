@@ -92,7 +92,9 @@ daq_device_caen_v1730::daq_device_caen_v1730(const int eventtype
     memset(&WDrun, 0, sizeof(WDrun));
     memset(&WDcfg, 0, sizeof(WDcfg));
 
-    strcpy(ConfigFileName, DEFAULT_CONFIG_FILE);
+    _boardnumber = boardid;
+    //strcpy(ConfigFileName, DEFAULT_CONFIG_FILE);
+    sprintf(ConfigFileName,"m%i.txt",_boardnumber);
     printf("Opening Configuration File %s\n", ConfigFileName);
     f_ini = fopen(ConfigFileName, "r");
     if (f_ini == NULL) {
@@ -142,31 +144,31 @@ daq_device_caen_v1730::daq_device_caen_v1730(const int eventtype
     /* Check if the board needs a specific config file and parse it instead of the default one */
     /* *************************************************************************************** */
 
-    int use_specific_file = 0;
-    //Check if model x742 is in use --> use its specific configuration file
-    if (BoardInfo.FamilyCode == CAEN_DGTZ_XX742_FAMILY_CODE) {
-            strcpy(ConfigFileName, "WaveDumpConfig_X742.txt");
-            printf("\nWARNING: using configuration file %s specific for Board model X742.\nEdit this file if you want to modify the default settings.\n ", ConfigFileName);
-            use_specific_file = 1;
-    }//Check if model x740 is in use --> use its specific configuration file
-    else if (BoardInfo.FamilyCode == CAEN_DGTZ_XX740_FAMILY_CODE) {
-            strcpy(ConfigFileName, "WaveDumpConfig_X740.txt");
-            printf("\nWARNING: using configuration file %s specific for Board model X740.\nEdit this file if you want to modify the default settings.\n ", ConfigFileName);
-            use_specific_file = 1;
-    }
+//    int use_specific_file = 0;
+//    //Check if model x742 is in use --> use its specific configuration file
+//    if (BoardInfo.FamilyCode == CAEN_DGTZ_XX742_FAMILY_CODE) {
+//            strcpy(ConfigFileName, "WaveDumpConfig_X742.txt");
+//            printf("\nWARNING: using configuration file %s specific for Board model X742.\nEdit this file if you want to modify the default settings.\n ", ConfigFileName);
+//            use_specific_file = 1;
+//    }//Check if model x740 is in use --> use its specific configuration file
+//    else if (BoardInfo.FamilyCode == CAEN_DGTZ_XX740_FAMILY_CODE) {
+//            strcpy(ConfigFileName, "WaveDumpConfig_X740.txt");
+//            printf("\nWARNING: using configuration file %s specific for Board model X740.\nEdit this file if you want to modify the default settings.\n ", ConfigFileName);
+//            use_specific_file = 1;
+//    }
 
-    if (use_specific_file) {
-            memset(&WDrun, 0, sizeof(WDrun));
-            memset(&WDcfg, 0, sizeof(WDcfg));
+//    if (use_specific_file) {
+//            memset(&WDrun, 0, sizeof(WDrun));
+//            memset(&WDcfg, 0, sizeof(WDcfg));
 
-            f_ini = fopen(ConfigFileName, "r");
-            if (f_ini == NULL) {
-                    ErrCode = ERR_CONF_FILE_NOT_FOUND;
-                    exit(0);
-            }
-            ParseConfigFile(f_ini, &WDcfg);
-            fclose(f_ini);
-    }
+//            f_ini = fopen(ConfigFileName, "r");
+//            if (f_ini == NULL) {
+//                    ErrCode = ERR_CONF_FILE_NOT_FOUND;
+//                    exit(0);
+//            }
+//            ParseConfigFile(f_ini, &WDcfg);
+//            fclose(f_ini);
+//    }
 
     // Get Number of Channels, Number of bits, Number of Groups of the board */
     ret = GetMoreBoardInfo(handle, BoardInfo, &WDcfg);
@@ -334,6 +336,12 @@ daq_device_caen_v1730::daq_device_caen_v1730(const int eventtype
       {
         _th = 0;
       }
+
+    ret = CAEN_DGTZ_SWStartAcquisition(handle);
+    if (ret) {
+            cout<<"Unable to start the boards!"<<endl;
+            exit(0);
+    }
 }
 
 
@@ -357,11 +365,13 @@ daq_device_caen_v1730::~daq_device_caen_v1730()
         delete _th;
         _th = 0;
     }
+
 }
 
 int  daq_device_caen_v1730::init()
 {
-    CAEN_DGTZ_SWStartAcquisition(handle);
+    //to enable timestamp reset using S-IN
+    WriteRegisterBitmask(handle,0x8100, 0x4, 0x4);
     receivedTrigger=0;
     return 0;
 }
@@ -400,7 +410,7 @@ int daq_device_caen_v1730::put_data(const int etype, int * adr, const int length
     sevt->sub_id =  m_subeventid;
     sevt->sub_type=4;
     sevt->sub_decoding = 105;
-    sevt->reserved[0] = 0;
+    sevt->reserved[0] = _boardnumber;
     sevt->reserved[1] = 0;
 
     /* Read data from the board */

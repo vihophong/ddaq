@@ -1,0 +1,1026 @@
+#include <TF1.h>
+#include <TCanvas.h>
+#include <TStyle.h>
+#include <TH1.h>
+#include <TH2.h>
+#include <TGraph.h>
+#include <TString.h>
+#include <TGaxis.h>
+#include <TRandom.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <TFile.h>
+#include <TTree.h>
+#include <TH1F.h>
+#include <TH2F.h>
+#include <TSpline.h>
+#include <iomanip>
+#include <iostream>
+#include <fstream>
+#include <string.h>
+#include <math.h>
+#include <time.h>
+#include <memory.h>
+#include <unistd.h>
+#include <sys/time.h>
+
+
+#include <iostream>
+
+#include <daq_device_CAENdrs_std.h>
+#include <string.h>
+
+#include <CAENDigitizer.h>
+#include <CAENDigitizerType.h>
+
+#define VME_INTERRUPT_LEVEL      1
+#define VME_INTERRUPT_STATUS_ID  0xAAAA
+#define INTERRUPT_MODE           CAEN_DGTZ_IRQ_MODE_ROAK
+
+
+using namespace std;
+
+daq_device_CAENdrs_std::daq_device_CAENdrs_std(const int eventtype
+                           , const int subeventid
+                           , const int linknumber
+                           , const int trigger  // do I give the system trigger?
+                           , const int speed
+                           , const int delay)
+{
+  m_eventType  = eventtype;
+  m_subeventid = subeventid;
+
+  _linknumber = linknumber;
+
+  nboard = speed;
+
+  for (b=0;b<nboard;b++) {
+      handle[b] = 0;
+      for (int c=0;c<MAX_N_CHANNEL;c++) {
+          trgcnt[b][c] = 0;
+      }
+  }
+  _Event742 = 0;
+
+  //modified by Phong  
+  _warning = 0;
+  ret=0;
+
+  //load parms
+  for (b=0;b<nboard;b++){
+      sprintf(configfile,"m%i.conf",b);
+      cout<<configfile<<endl;
+      dgtz_parms[b]=getDigitizerParams(configfile);
+      dpp_parms[b]=getDPPParams(configfile);
+      cout << "*************** opening Digitizer" << endl;
+      //_broken = CAEN_DGTZ_OpenDigitizer( CAEN_DGTZ_PCI_OpticalLink, _linknumber , node, 0 ,&handle);
+      //cout << "*************** " << _broken  << endl;
+      //OPEN digitizer, get handle
+      ret = CAEN_DGTZ_OpenDigitizer(dgtz_parms[b].LinkType, dgtz_parms[b].LinkNum, dgtz_parms[b].BoardNum, dgtz_parms[b].VMEBaseAddress, &handle[b]);
+      if (ret) {
+        printf("Can not open digitizer!\n");
+      }
+      /* Once we have the handler to the digitizer, we use it to call the other functions */
+      ret = CAEN_DGTZ_GetInfo(handle[b], &BoardInfo);
+      if (ret) {
+        printf("Can't read board info\n");
+        exit(0);
+      }
+      printf("Connected to CAEN Digitizer Model %s as board %i \nROC FPGA Release is %s\nAMC FPGA Release is %s\n ------------\n",
+            BoardInfo.ModelName, b,BoardInfo.ROC_FirmwareRel,BoardInfo.AMC_FirmwareRel);
+
+      // Check firmware revision (only DPP firmware can be used with this Demo) */
+     int MajorNumber;
+      sscanf(BoardInfo.AMC_FirmwareRel, "%d", &MajorNumber);
+      if (MajorNumber != 131 && MajorNumber != 132&& MajorNumber != 136 ) {
+        printf("This digitizer has not a DPP-PSD firmware\n");
+      }
+      _broken =  CAEN_DGTZ_Reset(handle[b]);
+
+      if ( _broken )
+        {
+          cout << " Error in CAEN_DGTZ_OpenDigitizer " << _broken << endl;
+          return;
+        }
+  }
+
+
+  _trigger_handler=0;
+  if (trigger)   _trigger_handler=1;
+
+
+  switch (speed)
+    {
+    case 0:
+      _speed = CAEN_DGTZ_DRS4_1GHz;
+      break;
+
+    case 1:
+      _speed = CAEN_DGTZ_DRS4_2_5GHz;
+      break;
+
+    case 2:
+      _speed = CAEN_DGTZ_DRS4_5GHz;
+      break;
+
+    default:
+      _speed = CAEN_DGTZ_DRS4_1GHz;
+
+    }
+
+  _delay = delay;
+
+  if ( _trigger_handler )
+    {
+      cout << __LINE__ << "  " << __FILE__ << " registering triggerhandler " << endl;
+      _th  = new CAENdrsTriggerHandler (handle[0], m_eventType);
+      registerTriggerHandler ( _th);
+    }
+  else
+    {
+      _th = 0;
+    }
+
+}
+
+void daq_device_CAENdrs_std::identify(std::ostream& os) const
+{
+
+  if ( _broken)
+    {
+      os << "CAEN 1730 Digitizer Event Type: " << m_eventType
+     << " Subevent id: " << m_subeventid
+     << " ** not functional ** " << endl;
+    }
+  else
+    {
+      os << "CAEN 1730 Digitizer STD Model " << BoardInfo.ModelName
+     << " Event Type: " << m_eventType
+     << " Subevent id: " << m_subeventid
+     << " Firmware "     << BoardInfo.ROC_FirmwareRel << " / " << BoardInfo.AMC_FirmwareRel
+     << " delay "  << _delay <<  "% ";
+      if (_trigger_handler) os << " *Trigger" ;
+      if (_warning) os << " **** warning - check setup parameters ****";
+      os << endl;
+
+    }
+}
+
+
+daq_device_CAENdrs_std::~daq_device_CAENdrs_std()
+{
+
+  if (_th)
+    {
+      clearTriggerHandler();
+      delete _th;
+      _th = 0;
+    }
+
+  /*
+  if ( _Event742)
+    {
+      CAEN_DGTZ_FreeEvent(handle, (void**)&_Event742);
+    }
+  */
+  for(b=0;b<nboard;b++){
+      CAEN_DGTZ_CloseDigitizer(handle[b]);
+  }
+  CAEN_DGTZ_FreeReadoutBuffer(&sbuffer_t);
+  CAEN_DGTZ_FreeDPPEvents(handle[0], sEvents_t);
+  CAEN_DGTZ_FreeDPPWaveforms(handle[0], sWaveform_t);
+
+}
+
+
+int  daq_device_CAENdrs_std::init()
+{
+
+  if ( _broken )
+    {
+
+      return 0; //  we had a catastrophic failure
+    }
+
+
+
+
+  //! Program digitizer here
+  for (b=0;b<nboard;b++){
+      sprintf(configfile,"m%i.conf",b);
+      //! why we can not do this?
+      _broken = ProgramDigitizer(handle[b], dgtz_parms[b], dpp_parms[b],configfile);
+      if ( _broken )
+        {
+          cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+          return 0;
+        }
+  }
+
+  /* Allocate memory for the readout buffer */
+  ret |= CAEN_DGTZ_MallocReadoutBuffer(handle[0], &sbuffer_t, &sAllocatedSize);
+  /* Allocate memory for the events */
+  ret |= CAEN_DGTZ_MallocDPPEvents(handle[0], sEvents_t, &sAllocatedSize);
+  /* Allocate memory for the waveforms */
+  ret |= CAEN_DGTZ_MallocDPPWaveforms(handle[0], &sWaveform_t, &sAllocatedSize);
+  if (ret) {
+      cout<<"Can't Allocate Memory Buffer!"<<endl;
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+  }
+
+  // and we trigger rearm with our event type so it takes effect
+  rearm (m_eventType);
+
+  for (b=0;b<nboard;b++){
+    _broken |= CAEN_DGTZ_SWStartAcquisition(handle[b]);
+  }
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+      return 0;
+    }
+
+  return 0;
+
+}
+
+// the put_data function
+
+int daq_device_CAENdrs_std::put_data(const int etype, int * adr, const int length )
+{
+
+    if ( _broken )
+      {
+        //      cout << __LINE__ << "  " << __FILE__ << " broken ";
+        //      identify();
+        return 0; //  we had a catastrophic failure
+      }
+
+    if (etype != m_eventType )  // not our id
+      {
+        return 0;
+      }
+
+    if ( length < max_length(etype) )
+      {
+        //      cout << __LINE__ << "  " << __FILE__ << " length " << length <<endl;
+        return 0;
+      }
+
+
+    int len = 0;
+
+    sevt =  (subevtdata_ptr) adr;
+    // set the initial subevent length
+    sevt->sub_length =  SEVTHEADERLENGTH;
+
+    // update id's etc
+    sevt->sub_id =  m_subeventid;
+    sevt->sub_type=4;
+    sevt->sub_decoding = 85;
+    sevt->reserved[0] = 0;
+    sevt->reserved[1] = 0;
+
+    uint32_t sBufferSize = 0;
+    uint32_t bbffersize[nboard];
+
+    int ch,ev;
+    //int evtbuff[16000];//max capacity=1000 event per all
+    int ipos=0;
+    int  *d=(int*) &sevt->data;
+
+    while ( sBufferSize == 0)
+      {
+        for (b=0;b<nboard;b++){
+            // Read data from the board
+            _broken = CAEN_DGTZ_ReadData(handle[b], CAEN_DGTZ_SLAVE_TERMINATED_READOUT_MBLT, sbuffer_t, &bbffersize[b]);
+            if ( _broken )
+          {
+            cout << __FILE__ << " " << __LINE__ << " _broken = " << _broken<< endl;
+            return 1;
+          }
+            sBufferSize+=bbffersize[b];
+
+            if (bbffersize[b]>0){	      
+                uint32_t NumEvents_t[16];
+                _broken =CAEN_DGTZ_GetDPPEvents(handle[b], sbuffer_t, bbffersize[b], sEvents_t, NumEvents_t);
+                if ( _broken )
+                      {
+                        cout << __FILE__ << " " << __LINE__ << " _broken = " << _broken<< endl;
+                        return 1;
+                      }
+                Events_t= (CAEN_DGTZ_DPP_PSD_Event_t**) (sEvents_t);
+
+                for(ch=0; ch<MAX_N_CHANNEL; ch++) {		    
+                    //if (!(dgtz_parms[b].ChannelMask & (1<<ch))) continue;
+                    for(ev=0; ev<NumEvents_t[ch]; ev++){			
+                        //if (Events_t[ch][ev].ChargeLong<=0) continue;
+			//cout<<"eee"<<Events_t[ch][ev].ChargeLong<<endl;
+		        uint16_t *WaveLine;
+                        CAEN_DGTZ_DecodeDPPWaveforms(handle[b], &Events_t[ch][ev], sWaveform_t); //decode wf cost computing time
+                        Waveform_t = (CAEN_DGTZ_DPP_PSD_Waveforms_t*)(sWaveform_t);
+                        WaveLine = Waveform_t->Trace1; // Input Signal	
+
+                        trgcnt[b][ch]++;
+                        *d++ = b;
+                        ipos++;
+                        *d++ = ch;
+                        ipos++;
+                        *d++ = (int) Events_t[ch][ev].TimeTag;
+                        ipos++;
+
+			if (_linknumber==0){//process waveform online
+			       //----------------start DPP processing----------
+			       //----------------No cfd infomation on data stream----------
+                            CFD_delay=1;//in Tclk unit, 1 Tclk=2ns
+                            CFD_fraction=0.5;
+                            LED_threshold=20;
+                            LED_threshold_LED=20;
+                            gateOffset=dpp_parms[b].pgate[ch];
+                            shortGate=dpp_parms[b].sgate[ch];
+                            longGate=dpp_parms[b].lgate[ch];
+                            nBaseline=16;
+                            minVarBaseline=100; //criteria for baseline determination
+                            mode_selection=4;
+
+                            uint32_t emptyFlag=0;
+                            //Check if theshold excess some value;                               
+                            dpp *oj=new dpp((int)Waveform_t->Ns,WaveLine);
+                            oj->baselineMean(nBaseline,minVarBaseline);
+                            //pur rejection for negative signal                               
+                            emptyFlag=(uint32_t)oj->emptyFlag(LED_threshold_LED);
+			    int cShort = 0;
+			    int cLong  = 0;
+                            if (emptyFlag==0){				   
+				   oj->makeCFD(LED_threshold,CFD_delay,CFD_fraction);
+				   oj->chargeInter(cShort,cLong,oj->cfdFast(),gateOffset,shortGate,longGate);
+			    }
+			    //! fill data
+			    *d++ = cShort;
+		            ipos++;
+		            *d++ = cLong;
+		            ipos++;
+                            *d++ = (int) Events_t[ch][ev].Extras;
+                            ipos++;
+                            *d++ = oj->bL;
+			    delete oj;
+
+			}else{
+		            *d++ = (int) Events_t[ch][ev].ChargeShort;
+		            ipos++;
+		            *d++ = (int) Events_t[ch][ev].ChargeLong;
+		            ipos++;
+                            *d++ = (int) Events_t[ch][ev].Extras;
+                            ipos++;
+                            *d++ = (int) Events_t[ch][ev].Baseline;
+                            ipos++;
+			}
+
+                        *d++ = trgcnt[b][ch];
+                        ipos++;
+		
+                        *d++ = (int) Waveform_t->Ns;
+                        ipos++;
+                        for (uint32_t i=0;i<Waveform_t->Ns/2;i++){
+                            *d++ = combineint(WaveLine[i*2],WaveLine[i*2+1]);
+                            ipos++;
+                        }
+                    }
+                }
+            }//if buf size>0
+
+        }//loop all board
+        //      cout << __FILE__ << " " << __LINE__ << " buffersize = " << buffersize << endl;
+      }//end of while sBufferSize==0
+        //if (sBufferSize==0) return 0;
+
+    
+    int padding=ipos%2;
+    sevt->sub_padding = ipos;
+    ipos=ipos+padding;
+    sevt->sub_length += ipos;
+    //cout << __LINE__ << "  " << __FILE__ << " returning "  << sevt->sub_length << endl;
+    return  sevt->sub_length;
+}
+
+
+
+int daq_device_CAENdrs_std::endrun()
+{
+  if ( _broken )
+    {
+      return 0; //  we had a catastrophic failure
+    }
+
+  //  cout << __LINE__ << "  " << __FILE__ << " ending run " << endl;
+  for (b=0;b<nboard;b++)
+  _broken |= CAEN_DGTZ_SWStopAcquisition(handle[b]);
+  if ( _broken )
+    {
+      cout << __FILE__ << " " <<  __LINE__ << " Error: " << _broken << endl;
+    }
+
+  for (b=0;b<nboard;b++) {
+      for (int c=0;c<MAX_N_CHANNEL;c++) {
+          trgcnt[b][c] = 0;
+      }
+  }
+
+  return _broken;
+
+}
+
+
+
+int daq_device_CAENdrs_std::max_length(const int etype) const
+{
+  if (etype != m_eventType) return 0;
+  return  (14900);
+}
+
+
+// the rearm() function
+int  daq_device_CAENdrs_std::rearm(const int etype)
+{
+  if ( _broken )
+    {
+      //      cout << __LINE__ << "  " << __FILE__ << " broken ";
+      //      identify();
+      return 0; //  we had a catastrophic failure
+    }
+
+  if (etype != m_eventType) return 0;
+
+  return 0;
+}
+
+
+int daq_device_CAENdrs_std::WriteRegisterBitmask(int32_t handle, uint32_t address, uint32_t data, uint32_t mask) {
+  int32_t ret = CAEN_DGTZ_Success;
+  uint32_t d32 = 0xFFFFFFFF;
+
+  ret = CAEN_DGTZ_ReadRegister(handle, address, &d32);
+  if(ret != CAEN_DGTZ_Success)
+    return ret;
+
+  data &= mask;
+  d32 &= ~mask;
+  d32 |= data;
+  ret = CAEN_DGTZ_WriteRegister(handle, address, d32);
+  return ret;
+}
+
+CAEN_DGTZ_DPP_PSD_Params_t daq_device_CAENdrs_std::getDPPParams(char* filename)
+{
+   CAEN_DGTZ_DPP_PSD_Params_t DPPParams;
+  FILE *infile;
+  infile=fopen(filename,"r");
+  char line[1000];
+  if (infile==NULL) perror("Error opening config file:");
+  int channel=-1;
+  while (fgets(line,1000,infile)!=NULL){
+    char ident[500];
+    char var[500];
+    sscanf(line,"%s %s",ident,var);
+    if (strcmp(ident,"DPPParams.purgap")==0) DPPParams.purgap=atoi(var);
+    if (strcmp(ident,"DPPParams.blthr")==0) DPPParams.blthr=atoi(var);
+    if (strcmp(ident,"DPPParams.bltmo")==0) DPPParams.bltmo=atoi(var);
+    if (strcmp(ident,"DPPParams.trgho")==0) DPPParams.trgho=atoi(var);
+    if (strcmp(ident,"DPPParams.purh")==0){
+      if (strcmp(var,"CAEN_DGTZ_DPP_PSD_PUR_DetectOnly")==0){
+    DPPParams.purh = CAEN_DGTZ_DPP_PSD_PUR_DetectOnly;
+      }else{
+    DPPParams.purh = CAEN_DGTZ_DPP_PSD_PUR_Enabled;
+      }
+    }
+
+    char abc[100];
+    //    char xyz[100];
+    if (line[0]=='['){
+      sscanf(line,"[ %s ]",abc);
+      //strncpy(xyz,abc,strlen(abc)-1);
+      channel=atoi(abc);
+    }
+    if (strcmp(ident,"DPPParams.thr[ch]")==0) DPPParams.thr[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.nsbl[ch]")==0) DPPParams.nsbl[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.lgate[ch]")==0) DPPParams.lgate[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.sgate[ch]")==0) DPPParams.sgate[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.pgate[ch]")==0) DPPParams.pgate[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.selft[ch]")==0) {
+      DPPParams.selft[channel]=atoi(var);
+    }
+    if (strcmp(ident,"DPPParams.tvaw[ch]")==0) DPPParams.tvaw[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.csens[ch]")==0) DPPParams.csens[channel]=atoi(var);
+    if (strcmp(ident,"DPPParams.trgc[ch]")==0){
+      if (strcmp(var,"CAEN_DGTZ_DPP_TriggerConfig_Threshold")==0){
+    DPPParams.trgc[channel] = CAEN_DGTZ_DPP_TriggerConfig_Threshold;
+      }else{
+    DPPParams.trgc[channel] = CAEN_DGTZ_DPP_TriggerConfig_Peak;
+      }
+    }
+  }
+  /*
+   int ch;
+        for(ch=0; ch<MaxNChannels; ch++) {
+            DPPParams.thr[ch] = 500;        // Trigger Threshold
+            DPPParams.nsbl[ch] = 2;
+            DPPParams.lgate[ch] = 32;    // Long Gate Width (N*4ns)
+            DPPParams.sgate[ch] = 24;    // Short Gate Width (N*4ns)
+            DPPParams.pgate[ch] = 8;     // Pre Gate Width (N*4ns)
+            DPPParams.selft[ch] = 1;
+            DPPParams.trgc[ch] = CAEN_DGTZ_DPP_TriggerConfig_Threshold;
+            DPPParams.tvaw[ch] = 50;
+            DPPParams.csens[ch] = 0;
+        }
+        DPPParams.purh = CAEN_DGTZ_DPP_PSD_PUR_DetectOnly;
+        DPPParams.purgap = 100;  // Purity Gap
+        DPPParams.blthr = 3;     // Baseline Threshold
+        DPPParams.bltmo = 100;   // Baseline Timeout
+        DPPParams.trgho = 8;     // Trigger HoldOff
+  */
+    return DPPParams;
+}
+DigitizerParams_t daq_device_CAENdrs_std::getDigitizerParams(char* filename)
+{
+  DigitizerParams_t Params;
+  uint32_t Mask=0x0;
+  FILE *infile;
+  infile=fopen(filename,"r");
+  char line[1000];
+  if (infile==NULL) perror("Error opening config file:");
+  int channel=-1;
+  while (fgets(line,1000,infile)!=NULL){
+    char ident[500];
+    char var[500];
+    sscanf(line,"%s %s",ident,var);
+    if (strcmp(ident,"SAVE_DIR")==0) strcpy(Params.saveDir,var);
+    if (strcmp(ident,"SAVE_NAME")==0) strcpy(Params.saveName,var);
+    if (strcmp(ident,"Params.LinkType")==0){
+      if (strcmp(var,"CAEN_DGTZ_OpticalLink")==0){
+    Params.LinkType = CAEN_DGTZ_OpticalLink;
+      }else{
+    Params.LinkType = CAEN_DGTZ_USB;
+      }
+    }
+    if (strcmp(ident,"Params.LinkNum")==0) Params.LinkNum=atoi(var);
+    if (strcmp(ident,"Params.BoardNum")==0) Params.BoardNum=atoi(var);
+    if (strcmp(ident,"Params.VMEBaseAddress")==0) Params.VMEBaseAddress=atoi(var);
+    if (strcmp(ident,"Params.IOlev")==0){
+      if (strcmp(var,"CAEN_DGTZ_IOLevel_TTL")==0){
+     Params.IOlev = CAEN_DGTZ_IOLevel_TTL;
+      }else{
+    Params.IOlev = CAEN_DGTZ_IOLevel_NIM;
+      }
+    }
+    if (strcmp(ident,"Params.AcqMode")==0){
+      if (strcmp(var,"CAEN_DGTZ_DPP_ACQ_MODE_Mixed")==0){
+    Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Mixed;
+      }else if (strcmp(var,"CAEN_DGTZ_DPP_ACQ_MODE_List")==0){
+    Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_List;
+      }else{
+    Params.AcqMode = CAEN_DGTZ_DPP_ACQ_MODE_Oscilloscope;
+      }
+    }
+    if (strcmp(ident,"Params.RecordLength")==0) Params.RecordLength=atoi(var);
+    if (strcmp(ident,"Params.EventAggr")==0) Params.EventAggr=atoi(var);
+    if (strcmp(ident,"Params.ExtTriggerInputMode")==0){
+      if (strcmp(var,"CAEN_DGTZ_TRGMODE_DISABLED")==0){
+    Params.ExtTriggerInputMode = CAEN_DGTZ_TRGMODE_DISABLED;
+      }else if (strcmp(var,"CAEN_DGTZ_TRGMODE_EXTOUT_ONLY")==0){
+    Params.ExtTriggerInputMode = CAEN_DGTZ_TRGMODE_EXTOUT_ONLY;
+      }else if (strcmp(var,"CAEN_DGTZ_TRGMODE_ACQ_ONLY")==0){
+    Params.ExtTriggerInputMode = CAEN_DGTZ_TRGMODE_ACQ_ONLY;
+      }else{
+    Params.ExtTriggerInputMode= CAEN_DGTZ_TRGMODE_ACQ_AND_EXTOUT;
+      }
+    }
+    char abc[100];
+    char xyz[100];
+    if (line[0]=='['){
+      sscanf(line,"[%s]",abc);
+      strncpy(xyz,abc,strlen(abc)-1);
+      channel=atoi(xyz);
+      //      printf("%d\n",channel);
+    }
+    if (strcmp(ident,"Params.ChannelEnabled[ch]")==0){
+      if (strcmp(var,"YES")==0){
+    Mask=Mask|(1<<channel);
+      }
+    }
+    if (strcmp(ident,"Params.PulsePolarity[ch]")==0){
+      if (strcmp(var,"CAEN_DGTZ_PulsePolarityNegative")==0){
+    Params.PulsePolarity[channel]= CAEN_DGTZ_PulsePolarityNegative;
+      }else{
+    Params.PulsePolarity[channel]= CAEN_DGTZ_PulsePolarityPositive;
+      }
+    }
+    if (strcmp(ident,"Params.PreTriggerSize[ch]")==0)  Params.PreTriggerSize[channel]=atoi(var);
+    if (strcmp(ident,"Params.DCOffset[ch]")==0){
+      Params.DCOffset[channel]= (int)((atof(var)+50) * 65535 / 100);
+    }
+  }
+
+  Params.ChannelMask = Mask;                               // Channel enable mask
+  return Params;
+}
+
+
+
+int daq_device_CAENdrs_std::ProgramDigitizer(int handle, DigitizerParams_t Params, CAEN_DGTZ_DPP_PSD_Params_t DPPParams,char* filename)
+{
+
+  /* This function uses the CAENDigitizer API functions to perform the digitizer's initial configuration */
+  int i, ret = 0;
+
+  /* Reset the digitizer already reset at the constructor */
+  //ret |= CAEN_DGTZ_Reset(handle);
+
+  if (ret) {
+    printf("ERROR: can't reset the digitizer.\n");
+    return -1;
+  }
+
+  ret |= CAEN_DGTZ_SetDPPAcquisitionMode(handle, Params.AcqMode, CAEN_DGTZ_DPP_SAVE_PARAM_EnergyAndTime);
+
+
+  // configure interrupts and trigger
+   /* ret |= CAEN_DGTZ_SetInterruptConfig( handle, CAEN_DGTZ_ENABLE,
+                                             VME_INTERRUPT_LEVEL, VME_INTERRUPT_STATUS_ID,
+                                             1, INTERRUPT_MODE);
+                                             */
+
+  // Set the digitizer acquisition mode (CAEN_DGTZ_SW_CONTROLLED or CAEN_DGTZ_S_IN_CONTROLLED)
+  ret |= CAEN_DGTZ_SetAcquisitionMode(handle, CAEN_DGTZ_SW_CONTROLLED);
+
+  //Set Run syncroniztion mode
+  //ret |=CAEN_DGTZ_SetRunSynchronizationMode(handle,CAEN_DGTZ_RUN_SYNC_TrgOutTrgInDaisyChain);
+
+
+  // Set the I/O level (CAEN_DGTZ_IOLevel_NIM or CAEN_DGTZ_IOLevel_TTL)
+  ret |= CAEN_DGTZ_SetIOLevel(handle, Params.IOlev);
+
+  // Set the digitizer's behaviour when an external trigger arrives:
+
+  ret |= CAEN_DGTZ_SetExtTriggerInputMode(handle,Params.ExtTriggerInputMode);
+
+  // Set the enabled channels
+  ret |= CAEN_DGTZ_SetChannelEnableMask(handle, Params.ChannelMask);
+
+  // Set how many events to accumulate in the board memory before being available for readout
+  ret |= CAEN_DGTZ_SetDPPEventAggregation(handle, Params.EventAggr, 0);
+
+  /* Set the mode used to syncronize the acquisition between different boards.
+     In this example the sync is disabled */
+  ret |= CAEN_DGTZ_SetRunSynchronizationMode(handle, CAEN_DGTZ_RUN_SYNC_Disabled);
+
+  // Set the DPP specific parameters for the channels in the given channelMask
+  ret |= CAEN_DGTZ_SetDPPParameters(handle, Params.ChannelMask, &DPPParams);
+if (ret) cout<<"found error!"<<endl; else cout<<"no error found"<<endl;
+  // Set the number of samples for each waveform
+  ret |= CAEN_DGTZ_SetRecordLength(handle, Params.RecordLength);
+  //ret |= CAEN_DGTZ_SetRecordLength(handle, 3000,1);
+  //ret |= CAEN_DGTZ_SetDPPTriggerMode(handle,CAEN_DGTZ_DPP_TriggerMode_Coincidence);
+
+
+  for(i=0; i<MAX_N_CHANNEL; i++) {
+    if (Params.ChannelMask & (1<<i)) {
+      // Set a DC offset to the input signal to adapt it to digitizer's dynamic range
+      ret |= CAEN_DGTZ_SetChannelDCOffset(handle, i, Params.DCOffset[i]);
+      // Set the Pre-Trigger size (in samples)
+      ret |= CAEN_DGTZ_SetDPPPreTriggerSize(handle, i, Params.PreTriggerSize[i]);
+
+      // Set the polarity for the given channel
+      ret |= CAEN_DGTZ_SetChannelPulsePolarity(handle, i, Params.PulsePolarity[i]);
+    }
+
+  }
+  //Write Register
+  FILE *infile;
+  infile=fopen(filename,"r");
+  char line[1000];
+  uint32_t address,data,mask;
+  while (fgets(line,1000,infile)!=NULL){
+    char ident[500];
+    char var1[500];
+    char var2[500];
+    char var3[500];
+    sscanf(line,"%s %s %s %s",ident,var1,var2,var3);
+    if (strcmp(ident,"GENERIC_WRITE")==0){
+      char *p;
+      address=strtoul(var1, &p, 16);
+      data=strtoul(var2, &p, 16);
+      mask=strtoul(var3, &p, 16);
+      ret|=WriteRegisterBitmask(handle,address,data,mask);
+    }
+  }
+
+  if (ret) {
+    printf("Warning: errors found during the programming of the digitizer.\nSome settings may not be executed\n");
+    return ret;
+  } else {
+      //cout<<"Digitizer setting is finished, no error found!"<<endl;
+    return 0;
+  }
+}
+
+
+
+//! DPP functions
+
+dpp::dpp(int fnsize,unsigned short * fpulse)
+{
+  PZC=1;
+  NZC=0;
+  armed=-1;
+  imax=0;
+  imin=0;
+  overFlow=false;
+  nsize=fnsize;
+  pulse=fpulse;
+  cfd_ret=new double[nsize];
+  icfd=new double[nsize];
+  pulseD=new double[nsize];
+  bL=fpulse[0];
+
+  fineLED=0;
+  pulsePolarity=0; // default negative
+}
+dpp::~dpp()
+{
+  delete[]cfd_ret;
+  delete[]icfd;
+  delete[]pulseD;
+}
+//----Invert pulse
+void dpp::invertPositivePulse()
+{
+  for (int i=0;i<nsize;i++){
+    pulse[i]=16384-pulse[i];
+  }
+  bL=16384-bL;
+}
+//----Determine the baseline
+void dpp::baselineMean(int fnBaseline,int mVB)
+{
+  int sum=0;
+  int mean;
+  int temp=pulse[0];
+  for (int i=0;i<nsize;i++){
+    if ((abs(pulse[i]-temp)<mVB)&&(i<fnBaseline-1)){
+      sum+=pulse[i];
+      temp=pulse[i];
+    }else {
+      if (i!=0) mean=sum/i;//avoid error divide by 0
+      else mean=pulse[i];
+      break;
+    }
+  }
+  bL=mean;
+}
+// plot the pulse
+int  dpp::plotPulse()
+{
+  ofstream abc("temp.dat");
+  for (int i=0;i<nsize;i++){
+    abc<<i<<" "<<pulse[i]<<"\n";
+  }
+  abc.close();
+  FILE* gnuplotPipe=popen("gnuplot -persist","w");
+  fprintf(gnuplotPipe,"set xrange [0:500]\n");
+  fprintf(gnuplotPipe,"set yrange [0:16000]\n");
+  fprintf(gnuplotPipe,"plot 'temp.dat' u 1:2 w p pt 1 ps 0.6 lc 0\n");
+  return 0;
+}
+int  dpp::plotCFD()
+{
+  ofstream abc("temp.dat");
+  for (int i=0;i<nsize;i++){
+    abc<<i<<" "<<cfd_ret[i]<<"\n";
+  }
+  abc.close();
+  FILE* gnuplotPipe=popen("gnuplot -persist","w");
+  fprintf(gnuplotPipe,"set xrange [0:500]\n");
+  fprintf(gnuplotPipe,"set yrange [-5000:5000]\n");
+  fprintf(gnuplotPipe,"plot 'temp.dat' u 1:2 w p pt 1 ps 0.6 lc 0\n");
+  return 0;
+}
+
+void dpp::makeCFD(int LED_threshold,int delay,double fraction)
+{
+  if (pulsePolarity==1) bL=16384-bL;
+
+  int min=0;
+  int max=0;
+  int armed_thres=bL-LED_threshold;
+  int att,invertDelay; //attenuated signal,invert delayed signal
+  //ofstream abc("tempcfd.dat");
+  bool stopZC=false;
+
+
+  if (pulsePolarity!=1) ledMin=pulse[0]; else ledMin=16384-pulse[0];
+
+  for (int i=0;i<nsize;i++){
+    if (pulsePolarity==1) pulse[i]=16384-pulse[i];
+
+    //Search for minimum simultaneosly
+    if (pulse[i]<ledMin) ledMin=pulse[i];
+
+    //Search for LED simultaneosly
+      double h,l;
+      if ((bL-pulse[i]>LED_threshold)&&(i>0)){
+        h=(double)(bL-pulse[i]-LED_threshold);
+        l=(double)(LED_threshold-bL+pulse[i-1]);
+        fineLED=(double)(i-1)+l/(h+l);
+      }
+
+
+    pulseD[i]=(double)pulse[i];
+    //overFlowCheck
+    if (pulse[i]==0) overFlow=true;
+
+    att=round((pulse[i]-bL)*fraction+bL);//attenualted
+    if (i<delay){
+      invertDelay=bL;
+    }else{
+      invertDelay=pulse[i-delay];//delayed
+      invertDelay=bL-(invertDelay-bL);//inverted
+    }
+    cfd_ret[i]=(double)(invertDelay+att-2*bL);
+    if (pulse[i]<armed_thres) armed=i;
+    if (stopZC==false&&armed!=-1&&cfd_ret[i]>0){
+      PZC=i;
+      NZC=i-1;
+      stopZC=true;
+    }
+    if (cfd_ret[i]<min){
+      min=cfd_ret[i];
+      imin=i;
+    }
+    if (cfd_ret[i]>max) {
+      max=cfd_ret[i];
+      imax=i;
+    }
+    icfd[i]=i;
+  }
+}
+
+//----------- Constant fraction discrimination
+double  dpp::cfdFast()
+{
+  double fineCfd=0;
+  if (PZC==1&&NZC==0){
+    fineCfd=0;
+    }else{
+    fineCfd=(double)(NZC)-(double)cfd_ret[NZC]/((double)cfd_ret[PZC]-(double)cfd_ret[NZC]);
+  }
+ return fineCfd;
+}
+double  dpp::interpolationFunc(double* x,double* par){
+  return ip->Eval(x[0]);
+}
+double dpp::cfdSlow()
+{
+  if (armed==-1) return 0;
+  double fine_cfd;
+  ip=new TSpline3("Cubic Spline",icfd,cfd_ret,nsize,"b2e2",0,0);
+  sp=new TF1("f",this,&dpp::interpolationFunc,0,nsize,1,"dpp","interpolationFunc");
+  fine_cfd=sp->GetX(0.,NZC,PZC,1e-10,1000);
+  delete ip;
+  delete sp;
+  return fine_cfd;
+}
+double* dpp::getInp(int pNum)
+{
+  double fine_cfd[pNum];
+  ip=new TSpline3("Cubic Spline",icfd,cfd_ret,nsize,"b2e2",0,0);
+  double x=0;
+  for (int i=0;i<pNum;i++){
+    x+=(double)nsize/(double)pNum;
+    fine_cfd[i]=ip->Eval(x);
+  }
+  delete ip;
+  return fine_cfd;
+}
+//----- Leading edge discrimination with pulse size correction (run after make
+double dpp::ledWithCorr(int minthres)
+{
+    double fine_led=0;
+    double h,l;
+    double corrThres=(double)(bL-ledMin)*0.3;
+    for (int i=0;i<nsize;i++){
+      if (((double)(bL-pulse[i])>corrThres)&&(bL-pulse[i]>minthres)&&(i>0)){
+        h=(double)(bL-pulse[i])-corrThres;
+        l=(double)(corrThres-bL+pulse[i-1]);
+        fine_led=(double)(i-1)+l/(h+l);
+        break;
+      }
+    }
+    return fine_led;
+}
+//----- Leading edge discrimination
+double  dpp::led(int threshold)
+{
+  double fine_led=0;
+  double h,l;
+  if (pulsePolarity==1) bL=16384-bL;
+  for (int i=0;i<nsize;i++){
+    if (pulsePolarity==1) pulse[i]=16384-pulse[i];
+    if ((bL-pulse[i]>threshold)&&(i>0)){
+      h=(double)(bL-pulse[i]-threshold);
+      l=(double)(threshold-bL+pulse[i-1]);
+      fine_led=(double)(i-1)+l/(h+l);
+      break;
+    }
+  }
+  return fine_led;
+}
+int dpp::maxfind(int nsamp) //work only for positive
+{
+    int max=0;
+    for (int i=0;i<nsize/nsamp;i++){
+        if (pulse[i]*nsamp>max) max=pulse[i];
+    }
+    return max;
+}
+int dpp::minAdcNeg(int nsamp) //work only for negative pulse
+{
+    int min=pulse[0];
+    if (nsamp>nsize) nsamp=nsize;
+    for (int i=0;i<nsamp;i++){
+        if (pulse[i]<min) min=pulse[i];
+    }
+    return min;
+}
+int dpp::maxAdcPos(int nsamp) //work only for positive pulse
+{
+    int max=0;
+    if (nsamp>nsize) nsamp=nsize;
+    for (int i=0;i<nsamp;i++){
+        if (pulse[i]>max) max=pulse[i];
+    }
+    return max;
+}
+int  dpp::emptyFlag(int threshold)
+{
+  int ledF=1;
+  if (pulsePolarity==1) bL=16384-bL;
+  for (int i=0;i<nsize;i++){
+    if (pulsePolarity==1) pulse[i]=16384-pulse[i];
+    if ((bL-pulse[i]>threshold)&&(i>0)){
+      ledF=0;
+      break;
+    }
+  }
+  return ledF;
+}
+
+int  dpp::emptyFlagPositive(int threshold) //no need to change polarity
+{
+  int ledF=1;
+  for (int i=0;i<nsize;i++){
+    if ((pulse[i]-bL>threshold)&&(i>0)){
+      ledF=0;
+      break;
+    }
+  }
+  return ledF;
+}
+
+//-----Charge intergration within shortGate and longGate
+void  dpp::chargeInter(int& cShort,int& cLong,int fineTS,int fgateOffset,int fshortGate,int flongGate){
+  cShort=0;
+  cLong=0;
+  for (int i=0;i<nsize;i++){
+    if ((i>=fineTS-fgateOffset)&&(i<=fineTS-fgateOffset+fshortGate)&&fineTS>0){
+      cShort=bL-pulse[i]+cShort;
+    }
+    if ((i>=fineTS-fgateOffset)&&(i<=fineTS-fgateOffset+flongGate)&&fineTS>0){
+      cLong=bL-pulse[i]+cLong;
+    }
+  }
+}
+//Individual operation
+void dpp::storedCfdSpline(TString filename)
+{
+  ip=new TSpline3("Cubic Spline",icfd,cfd_ret,nsize,"b2e2",0,0);
+  sp=new TF1("f",this,&dpp::interpolationFunc,0,nsize,1,"dpp","interpolationFunc");
+  TH1* hist=sp->GetHistogram();
+  TFile* f1=new TFile(filename,"RECREATE");
+  hist->Write();
+  f1->Close();
+  delete sp;
+  delete ip;
+}
+void dpp::storePulseSpline(TString filename)
+{
+  ip=new TSpline3("Cubic Spline",icfd,pulseD,nsize,"b2e2",0,0);
+  sp=new TF1("f",this,&dpp::interpolationFunc,0,nsize,1,"dpp","interpolationFunc");
+  TH1* hist=sp->GetHistogram();
+  TFile* f1=new TFile(filename,"RECREATE");
+  hist->Write();
+  f1->Close();
+  delete sp;
+  delete ip;
+}
+

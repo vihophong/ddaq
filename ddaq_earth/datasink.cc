@@ -58,22 +58,12 @@ static float MaxFileSize=-1;//max file size in MB
 static int buffer_begin[MAX_SUBSCRIBE_LIST];
 static int recv_buffers[MAX_SUBSCRIBE_LIST];
 static int elapsed_buffers[MAX_SUBSCRIBE_LIST];
+static int elapsed_buffers_prev[MAX_SUBSCRIBE_LIST];
 static double totalbytes = 0;
-
-static zmq::socket_t * datasinksend;
-static zmq::message_t recv_msgs1;
-static zmq::message_t recv_msgs2;
-static zmq::message_t recv_msgs3;
-static zmq::message_t recv_msgs4;
-
-ssize_t DataSize;
 
 pthread_mutex_t DataSinkSem;
 
-pthread_mutex_t TransportSem;
-
 pthread_t ThreadDataSink;
-pthread_t ThreadTransport;
 
 static zmq::context_t ctx;
 
@@ -104,17 +94,6 @@ int open_file(const int run_number, int *fd)
   return 0;
 }
 
-void *transportdata( void *arg)
-{
-    while(1){
-        pthread_mutex_lock( &TransportSem);
-        datasinksend->send(recv_msgs1,zmq::send_flags::sndmore);
-        datasinksend->send(recv_msgs2,zmq::send_flags::sndmore);
-        datasinksend->send(recv_msgs3,zmq::send_flags::sndmore);
-        datasinksend->send(recv_msgs4,zmq::send_flags::none);
-    }
-}
-
 void *datasink( void *arg)
 {
     //! recieved data from daqread
@@ -136,6 +115,7 @@ else
 
     //! send to online
     //zmq::context_t ctx2;
+    zmq::socket_t* datasinksend;
     datasinksend=new zmq::socket_t(ctx, zmq::socket_type::pub);
     datasinksend->bind("tcp://*:6666");
 
@@ -149,62 +129,51 @@ else
         if (!sink_data) continue;
         zmq_poll (items, 2, -1);
         if (items [0].revents & ZMQ_POLLIN) {
-            auto result = datasinkget->recv(recv_msgs1,zmq::recv_flags::none);
-            if (!recv_msgs1.more()){
-                perror("Error recv 1st message");
-            }else{
-                auto result = datasinkget->recv(recv_msgs2,zmq::recv_flags::none);
-                if (!recv_msgs2.more()){
-                    perror("Error recv 2nd message");
-                }else{
-                    auto result = datasinkget->recv(recv_msgs3,zmq::recv_flags::none);
-                    if (!recv_msgs3.more()){
-                        perror("Error recv 3rd message");
-                    }else{
-                        auto result = datasinkget->recv(recv_msgs4,zmq::recv_flags::none);
-                        int id=atoi(recv_msgs1.to_string().erase(0,1).data());
-                        int* bufferno=(int*) recv_msgs2.data();
-                        int* totalsize=(int*) recv_msgs3.data();
-                        if (buffer_begin[id]==0) buffer_begin[id]=*bufferno;
-                        recv_buffers[id]++;
-                        int elapsedbuff=*bufferno-buffer_begin[id]+1;
-                        elapsed_buffers[id]=elapsedbuff;
-                        double perct=(double)recv_buffers[id]/(double)elapsedbuff*100;
-                        std::cout <<"nmessage_t = "<<*result<<"\tid = "<<id<<"\telapsed buffers = "<<recv_buffers[id]<<"/"<<elapsedbuff<<" = "<<perct
-                                 <<" % | buffer no. = "<<  *bufferno<<"\ttotal size="<< *totalsize <<"\t"<<recv_msgs4.size()<<std::endl;
+            std::vector<zmq::message_t> recv_msgs;
+            zmq::recv_result_t result =
+              zmq::recv_multipart(*datasinkget, std::back_inserter(recv_msgs));
+            assert(result && "recv failed");
+            int id=atoi(recv_msgs[0].to_string().erase(0,1).data());
+            int* bufferno=(int*) recv_msgs[1].data();
+            int* totalsize=(int*) recv_msgs[2].data();
+            if (buffer_begin[id]==0) buffer_begin[id]=*bufferno;
+            int elapsedbuff=*bufferno-buffer_begin[id]+1;
+            elapsed_buffers[id]=elapsedbuff;
+            if (elapsed_buffers[id]<elapsed_buffers_prev[id]) recv_buffers[id]=0;
+            recv_buffers[id]++;
+            elapsed_buffers_prev[id]=elapsed_buffers[id];
+            double perct=(double)recv_buffers[id]/(double)elapsedbuff*100;
+            std::cout <<"nmessage_t = "<<*result<<"\tid = "<<id<<"\telapsed buffers = "<<recv_buffers[id]<<"/"<<elapsedbuff<<" = "
+                     <<perct<<" % | buffer no. = "<<  *bufferno<<"\ttotal size="<< *totalsize <<"\t"<<recv_msgs[3].size()<<std::endl;
 
-                        //! Write data to disk
-                        int blockcount = ( recv_msgs4.size() + 8192 -1)/8192;
-                        int bytecount = blockcount*8192;
-                        CurrentMBytes += (double) bytecount/1000000.;
-                        if (flag_outfile&&outfile_fd){
-                            ssize_t nbytes= write ( outfile_fd, (char*)recv_msgs4.data() , bytecount );
-                            //std::cout<<"write"<<nbytes<<"/"<<recv_msgs4.size()<<std::endl;
-                            totalbytes += (double) nbytes/1000000.;//in mb
-                            if (MaxFileSize>0&&totalbytes>MaxFileSize){
-                                close(outfile_fd);
-                                TheRun++;
-                                CurrentMBytes = 0;
-                                int status = open_file ( TheRun, &outfile_fd);
-                                if ( !status)
-                                {
-                                    std::cout << "Opened output file - SubFile " << TheRun << std::endl;
-                                }
-                                else
-                                {
-                                    std::cout << "Could not open output file - SubFile " << TheRun << std::endl;
-                                    exit(0);
-                                }
-                                totalbytes = 0;
-                            }
-                        }
+            ssize_t DataSize = recv_msgs[3].size();
+            char* DataToWrite = (char*) recv_msgs[3].data();
 
-                        //! Transport to Online
-                        pthread_mutex_unlock( &TransportSem);
+            int blockcount = ( DataSize + 8192 -1)/8192;
+            int bytecount = blockcount*8192;
+            CurrentMBytes += (double) bytecount/1000000.;
+            if (flag_outfile&&outfile_fd){
+                ssize_t nbytes= write ( outfile_fd, DataToWrite , bytecount );
+                std::cout<<"write"<<nbytes<<"/"<<DataSize<<std::endl;
+                totalbytes += (double) nbytes/1000000.;//in mb
+                if (MaxFileSize>0&&totalbytes>MaxFileSize){
+                    close(outfile_fd);
+                    TheRun++;
+                    CurrentMBytes = 0;
+                    int status = open_file ( TheRun, &outfile_fd);
+                    if ( !status)
+                    {
+                        std::cout << "Opened output file - SubFile " << TheRun << std::endl;
                     }
+                    else
+                    {
+                        std::cout << "Could not open output file - SubFile " << TheRun << std::endl;
+                        exit(0);
+                    }
+                    totalbytes = 0;
                 }
-
             }
+            zmq::send_multipart(*datasinksend,recv_msgs);
         }
     }
     exit(0);
@@ -220,12 +189,9 @@ int main(int argc, char *argv[]) {
      */
 
     pthread_mutex_init( &DataSinkSem, 0);
-    pthread_mutex_init( &TransportSem, 0);
 
     // pre-lock it except the "protect" ones
     pthread_mutex_lock( &DataSinkSem);
-    pthread_mutex_lock( &TransportSem);
-
 
     int status;
     status = pthread_create(&ThreadDataSink, NULL,
@@ -237,14 +203,6 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
-    status = pthread_create(&ThreadTransport, NULL,
-                            transportdata,
-                            (void *) 0);
-    if (status )
-    {
-        std::cout << "error in send monitor data thread create " << status << std::endl;
-        exit(0);
-    }
 
     RunTypes.push_back(make_pair(TheRunType,TheFileRule));
     //! zmq communication
@@ -279,7 +237,7 @@ int main(int argc, char *argv[]) {
                 else outtmp += "Error openning file : "+ CurrentFileName + "\n";
             }
 
-            for (int i=0;i<MAX_SUBSCRIBE_LIST;i++){ buffer_begin[i]=0; recv_buffers[i]=0; elapsed_buffers[i]=0;}
+            for (int i=0;i<MAX_SUBSCRIBE_LIST;i++){ buffer_begin[i]=0; recv_buffers[i]=0; elapsed_buffers[i]=0;elapsed_buffers_prev[i]=0;}
             totalbytes = 0;
         }
         else if (recv_msgs[0].to_string()=="daq_end")

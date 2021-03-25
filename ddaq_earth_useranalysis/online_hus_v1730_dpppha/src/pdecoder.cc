@@ -8,7 +8,6 @@
 #include <libDataStruct.h>
 #include <bitset>
 #include <stdint.h>
-#include <vector>
 #include <map>
 
 #include <TSystem.h>
@@ -20,7 +19,6 @@
 #include <TString.h>
 #include <TCanvas.h>
 
-#include <iostream>
 #include <fstream>
 
 #include <MyMainFrame.h>
@@ -32,7 +30,7 @@
 #define V1730_TIME_RESO 2
 #define V1730_N_CH 16
 #define V1730_MAX_N_CH 16
-#define V1730_PACKET 52
+#define V1730_DPPPHA_PACKET 51
 
 #define DIGITAL_PROBE_OFFSET 4000
 #define DIGITAL_PROBE_GAIN 1000
@@ -158,7 +156,7 @@ void Init(){
 
     hdummy=new TH1F("hdummy","hdummy",10,0,10);
     for (Int_t ch=0;ch<V1730_MAX_N_CH;ch++){
-        henergy[ch]=new TH1F(Form("henergy%d",ch),Form("henergy%d",ch),500,0,30000);
+        henergy[ch]=new TH1F(Form("henergy%d",ch),Form("henergy%d",ch),2000,200,20000);
         htrgtrace1d[ch]=new TH1F(Form("htrgtrace1d%d",ch),Form("htrgtrace1d%d",ch),10000,0,20000);
         hdptrace1d[ch]=new TH1F(Form("hdptrace1d%d",ch),Form("hdptrace1d%d",ch),10000,0,20000);
         hap1trace1d[ch]=new TH1F(Form("hap1trace1d%d",ch),Form("hap1trace1d%d",ch),10000,0,20000);
@@ -179,6 +177,10 @@ void Init(){
 
 void ProcessSingleEvent(channelaggr_t* channelaggrdata, channel_t* channeldata){
     if (channelaggrdata->dual_trace_flag){
+        hap1trace1d[channeldata->ch]->Reset();
+        hap2trace1d[channeldata->ch]->Reset();
+        hdptrace1d[channeldata->ch]->Reset();
+        htrgtrace1d[channeldata->ch]->Reset();
         for (unsigned long i=0;i<channeldata->ap1_sample.size();i++){
             hap1trace1d[channeldata->ch]->SetBinContent(i*2,channeldata->ap1_sample[i]);
             hap1trace1d[channeldata->ch]->SetBinContent(i*2+1,channeldata->ap1_sample[i]);
@@ -233,8 +235,8 @@ int pinit()
 
 int process_event (Event * e)
 {
-    //! v1740 packet
-    Packet *p1730=e->getPacket(V1730_PACKET);
+    //! v1730 packet
+    Packet *p1730=e->getPacket(V1730_DPPPHA_PACKET);
     if (p1730)
     {
         int* tmp;
@@ -317,11 +319,12 @@ int process_event (Event * e)
                     //channeldata.print();
                     //! process channel data
                     ProcessSingleEvent(&channelaggr,&channeldata);
-                }
+                }//loop on channel data
                 //pos+=channelaggr.size;
-            }
+            }//loop through all  dual channels data
 
-        }
+        }//end loop on all words
+
         //std::cout<<"---"<<std::endl;
         delete p1730;
     }//end of packet loop
