@@ -130,78 +130,40 @@ int rcdaqEventiterator::setup(const char *ip, int &status)
   return 0;
 }
 #else
-int rcdaqEventiterator::read_next_buffer()
+int rcdaqEventiterator::setup(const char *ip, int &status)
 {
-  int ip = 0;
-  if (bptr)
+  _defunct = 0;
+
+
+  struct hostent *p_host;
+  p_host = gethostbyname(ip);
+
+  //  std::cout << __FILE__ << " " << __LINE__ << "  " << ip << "  " << p_host->h_name << "  " << p_host->h_addr << std::endl;
+
+
+  if ( ! p_host )
     {
-      delete bptr;
-      bptr = 0;
+      status = -2;
+      _defunct = 1;
+      return -2;
     }
 
-  _sockfd  = socket(AF_INET, SOCK_STREAM, 0);
-  if ( _sockfd < 0) return 0;
+  //  std::cout << p_host->h_name << "  " << p_host->h_addr << std::endl;
 
-  if ( connect(_sockfd, (struct sockaddr*) &server, sizeof(server)) < 0 )
-    {
-      //std::cout << "error in connect" << std::endl;
-      close (_sockfd);
-      usleep(1000);  // we just slow down a bit to limit the rate or retries
-      return 0;
-    }
+  bptr = 0;
+  bp = 0;
+  allocatedsize = 0;
+  _theIP = p_host->h_name;
+  status = 0;
+  last_read_status = 0;
+  current_index = 0;
 
-  // say that this is our max size
-  int flag = htonl(64*1024*1024);
+  memset((char *) &server, 0, sizeof(server));
+  server.sin_family = AF_INET;
+  bcopy(p_host->h_addr, &(server.sin_addr.s_addr), p_host->h_length);
+  server.sin_port = htons(MONITORINGPORT);
 
-  int status = writen (_sockfd,(char *)  &flag, 4);
-  if ( status < 0)
-    {
-      close (_sockfd);
-      return 0;
-    }
-
-
-  int sizetobesent;
-  status = readn (_sockfd, (char *) &sizetobesent, 4);
-  if ( status < 0)
-    {
-      close (_sockfd);
-      return 0;
-    }
-
-  buffer_size = ntohl(sizetobesent);
-  int i;
-  if (bp)
-    {
-      if  (buffer_size > allocatedsize*4)
-    {
-      delete [] bp;
-      i = (buffer_size +8191) /8192;
-      allocatedsize = i * 2048;
-      bp = new PHDWORD[allocatedsize];
-    }
-    }
-  else
-    {
-      i = (buffer_size +8191) /8192;
-      allocatedsize = i * BUFFERBLOCKSIZE/4;
-      bp = new PHDWORD[allocatedsize];
-
-    }
-
-  status = readn ( _sockfd, (char *) bp, buffer_size);
-  if ( status < 0)
-    {
-      close (_sockfd);
-      return 0;
-    }
-
-  int ackvalue = htonl(101);
-  writen (_sockfd,(char *)  &ackvalue, 4);
-  close (_sockfd);
-
-  return buffer::makeBuffer( bp, allocatedsize, &bptr);
-
+  return 0;
 }
 #endif
 
@@ -371,6 +333,7 @@ int rcdaqEventiterator::read_next_buffer()
 
 }
 #endif
+
 #ifndef CPPZMQ
 int rcdaqEventiterator::readn (int fd, char *ptr, int nbytes)
 {
