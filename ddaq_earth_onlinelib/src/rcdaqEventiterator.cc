@@ -371,3 +371,41 @@ int rcdaqEventiterator::read_next_buffer()
 
 }
 #endif
+#ifndef CPPZMQ
+int rcdaqEventiterator::readn (int fd, char *ptr, int nbytes)
+{
+  int nleft, nread;
+  nleft = nbytes;
+  while ( nleft>0 )
+    {
+      nread = recv (fd, ptr, nleft, MSG_NOSIGNAL);
+      if ( nread < 0 )
+    {
+      return nread;
+    }
+      else if (nread == 0)
+    break;
+      nleft -= nread;
+      ptr += nread;
+    }
+  return (nbytes-nleft);
+}
+
+
+int rcdaqEventiterator::writen (int fd, char *ptr, int nbytes)
+{
+  int nleft, nwritten;
+  nleft = nbytes;
+  while ( nleft>0 )
+    {
+      nwritten = send (fd, ptr, nleft, MSG_NOSIGNAL);
+      if ( nwritten < 0 )
+    {
+      return nwritten;
+    }
+      nleft -= nwritten;
+      ptr += nwritten;
+    }
+  return (nbytes-nleft);
+}
+#endif

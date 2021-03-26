@@ -11,8 +11,10 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 
+#ifdef CPPZMQ
 #include "zmq.hpp"
 #include "zmq_addon.hpp"
+#endif
 
 #endif
 
@@ -47,12 +49,15 @@ protected:
   PHDWORD *bp;
   int allocatedsize;
 
+#ifdef CPPZMQ
   zmq::context_t* ctx;
   zmq::socket_t* online;
-
-
   //zmq::context_t * ctx;
   //zmq::socket_t * online;
+#else
+  int readn (int fd, char *ptr, int nbytes);
+  int writen (int fd, char *ptr, int nbytes);
+#endif
 
   int current_index;
   int last_read_status;
