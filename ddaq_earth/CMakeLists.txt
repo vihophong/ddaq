@@ -157,6 +157,9 @@ endforeach()
 # Install the binary/library/include to 'bin/lib/includes' directory under CMAKE_INSTALL_PREFIX
 #
 
+file (WRITE setup.sh "export ONLINE_MAIN=" ${CMAKE_INSTALL_PREFIX} "\nexport OFFLINE_MAIN=" ${CMAKE_INSTALL_PREFIX} "\nexport PATH=$ONLINE_MAIN/bin:$PATH\nexport LD_LIBRARY_PATH=$ONLINE_MAIN/lib\nsource $ONLINE_MAIN/bin/aliases.sh\nexport ROOT_INCLUDE_PATH=$ONLINE_MAIN/include:$ONLINE_MAIN/include/Event:$ONLINE_MAIN/include/pmonitor")
+file (COPY setup.sh DESTINATION ${CMAKE_BINARY_DIR} FILE_PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ)
+
 set(rcdaqheaders ${PROJECT_SOURCE_DIR}/include/SubevtStructures.h
     ${PROJECT_SOURCE_DIR}/include/SubevtConstants.h
     ${PROJECT_SOURCE_DIR}/include/daq_device.h
@@ -199,6 +202,7 @@ install(
     DESTINATION share/html)
 
 set(BIN_RESOURCE_FILES
+    setup.sh
     rcdaq_control.pl
     rcdaq_configmenu.pl
     automated_run_example.sh

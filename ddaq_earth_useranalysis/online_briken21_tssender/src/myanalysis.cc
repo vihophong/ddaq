@@ -27,7 +27,9 @@
 #include <correlation.h>
 #include "TThread.h"
 
-//#define SLOW_ONLINE 100000
+#include "transfer.h"
+
+//#define SLOW_ONLINE 1000
 #define RATE_CAL_REFESH_SECONDS 10
 
 #define V1730_MAX_N_CH 16
@@ -41,12 +43,59 @@ UShort_t sampling_interval = 16*16;//unit of ns
 TFile* file0 = 0;
 TTree* tree = 0;
 
-void Init(){
+struct stsyncdata{
+  unsigned int id;
+  unsigned int adc;
+  unsigned long long int ts;
+};
+int transid = 1; ///try exp 0;
+char *dataxfer;
+void *quit(void){
+  transferMultiClose(transid);
+  free(dataxfer);
+  exit(0);
+}
+const int buffersize = 16*1024;
+int dataxferidx;
+struct stsyncdata syncdata;
+int connection_status;
 
+void Init(){
+    dataxferidx=0;
+    connection_status=0;
+
+    syncdata.id = 2;
+    syncdata.adc = 0;
+    dataxfer = (char*) malloc(buffersize+32);
+    if(!dataxfer){
+      printf("Cannot' malloc sender data%d\n", buffersize);
+      exit(0);
+    }
+    printf("rcdaqsender\n");
+    /* Signal */
+    //signal(SIGINT, (void *)quit);
+    transferMultiPort(transid, 10307);
+    transferMultiBlockSize(transid, buffersize);
+    if (transferMultiInit(transid, (char*)"10.32.0.53")==0) connection_status=1;
 }
 
 void ProcessEvent(NIGIRI* data_now){
-    data_now->Print();
+    if (data_now->b==-1){
+        if (dataxferidx>=buffersize){
+            if (connection_status) transferMultiTxData(transid, &dataxfer[32], 1, buffersize-32);
+            unsigned int ttt;
+            memcpy((char *)&ttt, &dataxfer[32], sizeof(ttt));
+            printf("data = %llu (buffersize=%d)\n", ttt, buffersize);
+            memset(dataxfer, 0, buffersize);
+            dataxferidx=0;
+        }
+        syncdata.ts = (data_now->ts>>2) & 0x0000ffffffffffffLL;//Just equivalent to device by 4 (40 ns resolution)
+        cout<<std::hex<<"0x"<<syncdata.ts<<" - ts="<<std::dec<<syncdata.ts<<endl;
+        //printf("TS=%llu 0x%08llX\n", syncdata.ts, syncdata.ts);
+        memcpy(dataxfer+32+dataxferidx, (char *)&syncdata, sizeof(syncdata));
+        dataxferidx += sizeof(syncdata);
+    }
+
 }
 
 void DoUpdate(){
@@ -356,7 +405,7 @@ void decodelupo(Packet* pLUPO){
     UInt_t tslsb = (UInt_t)gg[3];
     UInt_t tsmsb = (UInt_t)gg[2];
     data->ts = (((ULong64_t)tsmsb<<32)&0xFFFF00000000)|(ULong64_t)tslsb;//resolution is 10 ns!
-    data->ts = data->ts*LUPO_CLK_RES;
+    data->ts = data->ts;
     data->pattern= gg[1];//daq counter
     data->evt = gg[0];
     ProcessEvent(data);

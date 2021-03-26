@@ -138,6 +138,7 @@ void Init(){
 }
 
 void ProcessEvent(NIGIRI* data_now){
+    //data_now->Print();
     if (data_now->b==5){
         for (Int_t ch=0;ch<V1740_N_MAX_CH;ch++){
             if (data_now->GetHit(ch)->clong>0&&data_now->GetHit(ch)->finets>trig_pos-5){

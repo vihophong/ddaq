@@ -104,7 +104,6 @@ void Init(){
 }
 
 void ProcessEvent(NIGIRIHit* data){
-
   if (dataxferidx>=buffersize){
       if (connection_status) transferMultiTxData(transid, &dataxfer[32], 1, buffersize-32);
       unsigned int ttt;

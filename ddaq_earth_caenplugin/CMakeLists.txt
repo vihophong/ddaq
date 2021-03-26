@@ -19,9 +19,9 @@ project(caenplugin)
 
 #---Define useful ROOT functions and macros (e.g. ROOT_GENERATE_DICTIONARY)
 
-include_directories(${CMAKE_SOURCE_DIR} $ENV{ONLINE_MAIN}/include)
+include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_INSTALL_PREFIX}/include)
 
-link_directories(/usr/lib $ENV{ONLINE_MAIN}/lib)
+link_directories(/usr/lib ${CMAKE_INSTALL_PREFIX}/lib)
 
 #set(BUILD_CXX_FLAGS2 "-lz")
 #add_definitions(${BUILD_CXX_FLAGS2})

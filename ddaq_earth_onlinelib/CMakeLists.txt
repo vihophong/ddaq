@@ -31,6 +31,9 @@ find_package(ROOT REQUIRED COMPONENTS Core RIO Hist Tree Matrix Physics MathCore
 
 #---Locate cppzmq package
 find_package(cppzmq)
+if (cppzmq_FOUND)
+    add_definitions(-DCPPZMQ=1)
+endif()
 
 #---Define useful ROOT functions and macros (e.g. ROOT_GENERATE_DICTIONARY)
 include(${ROOT_USE_FILE})
@@ -48,9 +51,9 @@ add_definitions(-DRDBUF_ACCEPTS_STREAMBUF=1 -DHAVE_STRPTIME_PROTOTYPE=1 -DHAVE_G
 #include source and include dir
 include_directories(${PROJECT_SOURCE_DIR}/include/Event)
 include_directories(${PROJECT_SOURCE_DIR}/include)
-if (CZMQ_INCLUDE_DIR)
-    include_directories(${CZMQ_INCLUDE_DIR})
-    message(STATUS "Included directory: ${CZMQ_INCLUDE_DIR} for ZMQ and CPPZMQ")
+if (cppzmq_FOUND)
+    include_directories(${cppzmq_INCLUDE_DIR})
+    message(STATUS "Included directory: ${cppzmq_INCLUDE_DIR} for ZMQ and CPPZMQ")
 endif()
 
 
@@ -109,7 +112,9 @@ add_library(NoRootEvent SHARED ${headers} ${sources} ${sources_C})
 target_link_libraries(NoRootEvent message)
 #target_link_libraries(NoRootEvent z)
 #target_link_libraries(NoRootEvent lzo2)#lzo
+if (cppzmq_FOUND)
 target_link_libraries(NoRootEvent cppzmq)
+endif()
 
 set(event_dict_files ${PROJECT_SOURCE_DIR}/include/Event/Event.h
     ${PROJECT_SOURCE_DIR}/include/Event/Eventiterator.h
@@ -128,8 +133,6 @@ target_link_libraries(Event Rootmessage)
 target_link_libraries(Event ${ROOT_LIBRARIES})
 #target_link_libraries(Event z)
 #target_link_libraries(Event lzo2)
-
-
 
 
 set(pmonitor_sources ${PROJECT_SOURCE_DIR}/pmonitor_src/pmonitor.cc
@@ -187,6 +190,10 @@ endforeach()
 #----------------------------------------------------------------------------
 # Install the binary/library/include to 'bin/lib/includes' directory under CMAKE_INSTALL_PREFIX
 #
+
+file (WRITE setuponline.sh "export ONLINE_MAIN=" ${CMAKE_INSTALL_PREFIX} "\nexport OFFLINE_MAIN=" ${CMAKE_INSTALL_PREFIX} "\nexport PATH=$ONLINE_MAIN/bin:$PATH\nexport LD_LIBRARY_PATH=$ONLINE_MAIN/lib\nexport ROOT_INCLUDE_PATH=$ONLINE_MAIN/include:$ONLINE_MAIN/include/Event:$ONLINE_MAIN/include/pmonitor")
+file (COPY setuponline.sh DESTINATION ${CMAKE_BINARY_DIR} FILE_PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ)
+
 install(TARGETS message
         LIBRARY DESTINATION lib
 )
@@ -262,3 +269,8 @@ if(Boost_FOUND)
     install(TARGETS ddump DESTINATION bin)
 endif()
 
+install(
+    FILES setuponline.sh
+    PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+    DESTINATION bin
+)

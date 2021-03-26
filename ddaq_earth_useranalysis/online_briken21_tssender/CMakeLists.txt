@@ -17,6 +17,8 @@ include(${ROOT_USE_FILE})
 include_directories(${CMAKE_SOURCE_DIR} ${ROOT_INCLUDE_DIRS} $ENV{ONLINE_MAIN}/include)
 add_definitions(${ROOT_CXX_FLAGS})
 
+add_definitions(-DUNIX=1 -DLINUX=1 -DUSEPTHREAD=1 -DSIXTYFOUR_BIT=1 -DTSOVERLAP=1)
+
 #include source and include dir
 include_directories(${PROJECT_SOURCE_DIR}/include)
 file(GLOB sources ${PROJECT_SOURCE_DIR}/src/*.cc)
@@ -31,15 +33,23 @@ add_library(DataStruct SHARED ${PROJECT_SOURCE_DIR}/include/libDataStruct.h  G__
 target_link_libraries(DataStruct pmonitor Event NoRootEvent message)
 target_link_libraries(DataStruct ${ROOT_LIBRARIES})
 
+ROOT_GENERATE_DICTIONARY(G__transfer ${PROJECT_SOURCE_DIR}/include/transfer.h LINKDEF ${PROJECT_SOURCE_DIR}/include/transferLinkDef.h)
+add_library(Transfer SHARED ${PROJECT_SOURCE_DIR}/include/transfer.h ${PROJECT_SOURCE_DIR}/include/msg.h  ${PROJECT_SOURCE_DIR}/src/transfer.c  G__transfer.cxx)
+
 ROOT_GENERATE_DICTIONARY(G__myanalysis ${PROJECT_SOURCE_DIR}/include/myanalysis.h LINKDEF ${PROJECT_SOURCE_DIR}/include/myanalysisLinkDef.h)
-add_library(myanalysis SHARED ${sources} ${headers}  G__myanalysis.cxx)
+add_library(myanalysis SHARED ${sources} ${headers} G__myanalysis.cxx)
 target_link_libraries(myanalysis DataStruct)
 target_link_libraries(myanalysis pmonitor Event NoRootEvent message)
+target_link_libraries(myanalysis pmonitor Event NoRootEvent message)
+#target_link_libraries(myanalysis xfer)
+target_link_libraries(myanalysis Transfer)
 
 add_executable(offline
-    ${sources} ${headers} G__myanalysis.cxx)
+    ${sources} ${headers} G__myanalysis.cxx G__transfer.cxx)
 target_link_libraries(offline DataStruct)
 target_link_libraries(offline pmonitor Event NoRootEvent message)
+#target_link_libraries(myanalysis xfer)
+target_link_libraries(offline Transfer)
 
 
 #----------------------------------------------------------------------------
