@@ -524,7 +524,7 @@ int daq_device_caen_v1740zsp::put_data(const int etype, int * adr, const int len
         if (Nb == 0)
             printf("No data...\n");
         else
-            printf("Reading at %.2f MB/s (Trg Rate: %.2f Hz) - MBLT=%d \n", ReadoutRate, TriggerRate,NumEvents);
+            printf("Reading board %d at %.2f MB/s (Trg Rate: %.2f Hz) - MBLT=%d \n", _boardnumber, ReadoutRate, TriggerRate,NumEvents);
 
         nCycles= 0;
         Nb = 0;

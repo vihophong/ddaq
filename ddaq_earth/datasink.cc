@@ -117,7 +117,14 @@ else
     //zmq::context_t ctx2;
     zmq::socket_t* datasinksend;
     datasinksend=new zmq::socket_t(ctx, zmq::socket_type::pub);
+
+    //! set high water mark that drop message in queue
+    datasinksend->set(zmq::sockopt::sndhwm,10);
+    //! set conflate mode (only one mess in a queue)
+    //datasinksend->set(zmq::sockopt::conflate,1);
+
     datasinksend->bind("tcp://*:6666");
+
 
     zmq::pollitem_t items[]={
         { *datasinkget, 0, ZMQ_POLLIN, 0 },
@@ -173,7 +180,8 @@ else
                     totalbytes = 0;
                 }
             }
-            zmq::send_multipart(*datasinksend,recv_msgs);
+            datasinksend->send(recv_msgs[3],zmq::send_flags::none);
+            //zmq::send_multipart(*datasinksend,recv_msgs);
         }
     }
     exit(0);

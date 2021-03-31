@@ -113,13 +113,18 @@ int rcdaqEventiterator::setup(const char *ip, int &status)
   }
   std::cout<<"ZMQ connected "<<tmpcmd<<std::endl;
 
-//  int hmw =2;
-//  online->setsockopt(ZMQ_RCVHWM,&hmw, sizeof(hmw));
-//  int bufsize = hmw*1024;
-//  online->setsockopt(ZMQ_RCVBUF,&bufsize, sizeof(bufsize));
+  online->set(zmq::sockopt::subscribe, "");//subcribe all
+  //! only get last mess from queue
+  //online->set(zmq::sockopt::conflate,1);
+  online->set(zmq::sockopt::rcvhwm,10);
+  //  int hmw =2;
+  //  online->setsockopt(ZMQ_RCVHWM,&hmw, sizeof(hmw));
+  //  int bufsize = hmw*1024;
+  //  online->setsockopt(ZMQ_RCVBUF,&bufsize, sizeof(bufsize));
 
   online->connect(tmpcmd);
-  online->set(zmq::sockopt::subscribe, "");//subcribe all
+
+
   //!-----------------------------------------------------
 
   memset((char *) &server, 0, sizeof(server));
@@ -226,15 +231,21 @@ int rcdaqEventiterator::read_next_buffer()
       bptr = 0;
     }
 
-  //! read buffer size
-  std::vector<zmq::message_t> recv_msgs;
-  zmq::recv_result_t result =
-          zmq::recv_multipart(*online, std::back_inserter(recv_msgs));
-  assert(result && "recv failed");
-  int id = atoi(recv_msgs[0].to_string().erase(0,1).data());
-  int* reportbufferno = (int*) recv_msgs[1].data();
-  int* reportsize = (int*) recv_msgs[2].data();
-  buffer_size = recv_msgs[3].size();//buffer size raw
+  //! multi part get
+  //std::vector<zmq::message_t> recv_msgs;
+  //zmq::recv_result_t result =
+  //        zmq::recv_multipart(*online, std::back_inserter(recv_msgs));
+  //assert(result && "recv failed");
+  //int id = atoi(recv_msgs[0].to_string().erase(0,1).data());
+  //int* reportbufferno = (int*) recv_msgs[1].data();
+  //int* reportsize = (int*) recv_msgs[2].data();
+  //buffer_size = recv_msgs[3].size();//buffer size raw
+
+  //! single part get
+  zmq::message_t mess;
+  auto res = online->recv(mess,zmq::recv_flags::none);
+  buffer_size = mess.size();
+
   //! allocate PHDWORD bp
   int i;
   if (bp)
@@ -254,8 +265,9 @@ int rcdaqEventiterator::read_next_buffer()
       bp = new PHDWORD[allocatedsize];
     }
   // not nice but Ok for now
-  memcpy(bp,recv_msgs[3].data(),buffer_size);
-  //PHDWORD* d=(PHDWORD*) recv_msgs[3].data();
+  //memcpy(bp,recv_msgs[3].data(),buffer_size);
+  memcpy(bp,mess.data(),buffer_size);
+
   return buffer::makeBuffer( bp, allocatedsize, &bptr);
 }
 #else

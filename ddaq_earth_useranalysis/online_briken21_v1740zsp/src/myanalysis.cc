@@ -182,13 +182,13 @@ void ProcessEvent(NIGIRI* data_now){
         for (Int_t ch=0;ch<V1740_N_MAX_CH;ch++){
             if (data_now->GetHit(ch)->clong>0){
                 Int_t idch = (data_now->b-4)*V1740_N_MAX_CH+ch;
-                Int_t itcnt= 0 ;
-                for (std::vector<UShort_t>::iterator it = data_now->GetHit(ch)->pulse.begin() ; it != data_now->GetHit(ch)->pulse.end(); ++it){
-                    if (itcnt<N_MAX_WF_LENGTH){
-                        hwf2d[idch]->Fill(itcnt,*it);
-                    }
-                    itcnt++;
-                }
+//                Int_t itcnt= 0 ;
+//                for (std::vector<UShort_t>::iterator it = data_now->GetHit(ch)->pulse.begin() ; it != data_now->GetHit(ch)->pulse.end(); ++it){
+//                    if (itcnt<N_MAX_WF_LENGTH){
+//                        hwf2d[idch]->Fill(itcnt,*it);
+//                    }
+//                    itcnt++;
+//                }
                 he2d->Fill(idch,data_now->GetHit(ch)->clong);
             }
         }
